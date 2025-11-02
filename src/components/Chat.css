@@ -1,0 +1,206 @@
+/* Import Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap');
+
+/* Global Styles */
+* {
+    box-sizing: border-box;
+}
+
+/* Reset default margins and paddings */
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+    background-color: #000000;
+    color: #ffffff;
+}
+
+/* Overall Chat Container with Sidebar and Main Chat */
+.chat-container {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Sidebar Styling */
+.sidebar {
+    width: 175px; /* Fixed width for sidebar */
+    background-color: #222;
+    padding: 20px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.menu-icon {
+    cursor: pointer;
+    margin-right: 10px;
+    font-size: 24px;
+}
+
+.header-title {
+    font-size: 18px;
+    font-weight: normal;
+}
+
+.lsu-logo-sidebar {
+    width: 70%;
+    height: auto;
+    margin-top: 5px;
+    margin-left: 10px;
+}
+
+.menu-dropdown-sidebar {
+    position: absolute;
+    margin-left: -10px;
+    margin-top: 50px;
+    background-color: #333;
+    padding: 10px;
+    border-radius: 8px;
+    width: 100%;
+    color: #ffffff;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+    z-index: 1;
+}
+
+.menu-dropdown-sidebar p {
+    margin: 10px 0;
+    cursor: pointer;
+    font-weight: normal; /* Ensure menu items are not bold */
+}
+
+.menu-dropdown-sidebar p:hover {
+    font-weight: bolder;
+}
+
+/* Main Chat Area */
+.main-chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Chat Window */
+.chat-window {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background-color: #000000;
+}
+
+/* Message Styling */
+.message {
+    display: flex;
+    margin-bottom: 15px;
+}
+
+.message.user {
+    justify-content: flex-end;
+}
+
+.message.user .message-content {
+    background-color: #dcd6f7;
+    color: #000000;
+    border-radius: 15px;
+    padding: 15px;
+    max-width: 75%;
+    margin: 0;
+}
+
+.message.bot {
+    justify-content: flex-start;
+}
+
+.message.bot .message-content {
+    background-color: #ffffe0;
+    color: #000000;
+    border-radius: 15px;
+    padding: 15px;
+    max-width: 75%;
+    text-align: left;
+}
+
+/* Input Area */
+.input-area {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #000000; /* Match chat background */
+}
+
+.input-area input {
+    flex: 1;
+    padding: 15px;
+    border: 2px solid #4b4f8f;
+    font-size: 16px;
+    outline: none;
+    border-radius: 9999px; /* Pill shape */
+    margin: 0;
+    background-color: #ffffff;
+    color: #000000;
+}
+
+.input-area input::placeholder {
+    color: #bbb;
+}
+
+.input-area button {
+    width: 50px;
+    height: 50px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 24px;
+    color: #ffffff;
+    margin-left: 10px; /* Space between input and button */
+    margin-right: 5px; /* space on the right edge */
+}
+
+.input-area button:hover {
+    color: #4b4f8f;
+}
+
+.error-message {
+    color: red;
+    text-align: center;
+    margin: 10px 20px;
+}
+
+/* Styles for the Scrollable List of Past Chats */
+.past-chats {
+    margin-top: 10px;
+    margin-left: -10px;
+    max-height: 90%; /* Set a maximum height */
+    overflow-y: auto; /* Enable scrolling */
+    width: 115%; /* Ensure the list spans the sidebar width */
+    background-color: #222; /* Background color to match the sidebar */
+    border-radius: 8px;
+    padding: 5px;
+    scrollbar-width: thin; /* For Firefox: makes the scrollbar thinner */
+    scrollbar-color: #333 #222; /* For Firefox: custom colors */
+    direction: rtl;
+}
+
+.past-chat-item {
+    padding: 20px;
+    cursor: pointer;
+    font-weight: normal;
+    color: #ffffff;
+}
+
+.past-chat-item:last-child {
+    border-bottom: none; /* Remove the separator for the last item */
+}
+
+.past-chat-item:hover {
+    background-color: #444; /* Highlight on hover */
+    font-weight: bolder;
+}
