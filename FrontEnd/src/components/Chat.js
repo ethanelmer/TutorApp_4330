@@ -4,9 +4,6 @@ import axios from 'axios';
 import './Chat.css';
 import './FileUpload.css';
 
-// Import the LSU logo
-import lsuLogo from './images/LSU-Logo.png';
-
 const Chat = () => {
     const [messages, setMessages] = useState([
         { sender: 'bot', text: 'Hello! How can I assist you today? You can upload study materials and I\'ll help you understand them.' },
@@ -147,8 +144,6 @@ const Chat = () => {
                         <div className="menu-icon" onClick={handleMenuToggle}>☰</div>
                         <span className="header-title">{headerTitle}</span>
                     </div>
-                    {/* LSU Logo positioned to the right */}
-                    <img src={lsuLogo} alt="LSU Logo" className="lsu-logo-sidebar" />
                 </div>
                 {showMenu && (
                     <div className="menu-dropdown-sidebar">
