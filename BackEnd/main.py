@@ -73,18 +73,36 @@ async def upload_file(file: UploadFile = File(...)):
         if collection is None:
             raise HTTPException(status_code=503, detail="Search collection is not initialized yet")
 
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file was provided")
+
         content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="The uploaded file is empty")
+
         text_content = ""
         
         # Handle different file types
         if file.filename.lower().endswith('.pdf'):
-            # Process PDF file
-            pdf_file = io.BytesIO(content)
-            pdf_reader = PdfReader(pdf_file)
-            
-            # Extract text from all pages
-            for page in pdf_reader.pages:
-                text_content += page.extract_text() + "\n"
+            try:
+                # Process PDF file
+                pdf_file = io.BytesIO(content)
+                pdf_reader = PdfReader(pdf_file)
+                
+                if len(pdf_reader.pages) == 0:
+                    raise HTTPException(status_code=400, detail="The PDF file appears to be empty")
+                
+                # Extract text from all pages
+                for page in pdf_reader.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text_content += page_text + "\n"
+                
+                if not text_content.strip():
+                    raise HTTPException(status_code=400, detail="Could not extract any text from the PDF file. The file might be scanned or contain only images.")
+            except Exception as pdf_error:
+                print(f"PDF processing error: {str(pdf_error)}")  # Debug log
+                raise HTTPException(status_code=400, detail=f"Error processing PDF file: {str(pdf_error)}")
         else:
             # Process text files
             try:

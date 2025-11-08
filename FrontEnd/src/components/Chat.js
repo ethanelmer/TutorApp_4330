@@ -88,6 +88,7 @@ const Chat = () => {
                     const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
                     setUploadProgress(progress);
                 },
+                timeout: 30000, // 30 second timeout
             });
 
             setMessages(prev => [...prev, {
@@ -103,12 +104,23 @@ const Chat = () => {
             setUploadProgress(0);
         } catch (err) {
             console.error('Upload error:', err);
-            const errorMessage = err.response?.data?.detail || 'Failed to upload file. Please try again.';
+            let errorMessage = 'Failed to upload file. Please try again.';
+            if (err.response?.data?.detail) {
+                errorMessage = err.response.data.detail;
+            } else if (err.message) {
+                if (err.message.includes('Network Error')) {
+                    errorMessage = 'Cannot connect to the server. Please make sure the backend server is running on http://127.0.0.1:8000';
+                } else {
+                    errorMessage = err.message;
+                }
+            }
+            
+            console.error('Upload error details:', err);
             setError(`Upload failed: ${errorMessage}`);
             setUploadProgress(0);
             setMessages(prev => [...prev, {
                 sender: 'bot',
-                text: `❌ Failed to upload ${selectedFile.name}. ${errorMessage}`
+                text: `❌ Failed to upload ${selectedFile.name}. Error: ${errorMessage}`
             }]);
         }
     };
