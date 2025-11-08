@@ -49,21 +49,15 @@
 }
 
 .file-input-wrapper {
-    position: relative;
-    overflow: hidden;
     display: inline-block;
-}
-
-.file-input-wrapper input[type=file] {
-    position: absolute;
-    left: 0;
-    top: 0;
-    opacity: 0;
-    cursor: pointer;
+    margin-right: 10px;
 }
 
 .selected-file {
-    margin-left: 10px;
+    margin: 0 10px;
+    color: #fff;
     font-size: 14px;
-    color: #666;
+    opacity: 1;
+    display: inline-block;
+    vertical-align: middle;
 }

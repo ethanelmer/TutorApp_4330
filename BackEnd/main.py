@@ -3,8 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 import uvicorn
-from .chromaConnection import get_chroma_client
+from BackEnd.chromaConnection import get_chroma_client
 import os
+import io
+from PyPDF2 import PdfReader
 from dotenv import load_dotenv
 
 # Load environment variables early (explicitly load BackEnd/.env so running uvicorn from repo root still finds it)
@@ -71,12 +73,37 @@ async def upload_file(file: UploadFile = File(...)):
         if collection is None:
             raise HTTPException(status_code=503, detail="Search collection is not initialized yet")
 
-        # Read file content
         content = await file.read()
-        text_content = content.decode()  # For text files. For PDFs/other formats, you'll need additional processing
+        text_content = ""
+        
+        # Handle different file types
+        if file.filename.lower().endswith('.pdf'):
+            # Process PDF file
+            pdf_file = io.BytesIO(content)
+            pdf_reader = PdfReader(pdf_file)
+            
+            # Extract text from all pages
+            for page in pdf_reader.pages:
+                text_content += page.extract_text() + "\n"
+        else:
+            # Process text files
+            try:
+                text_content = content.decode('utf-8')
+            except UnicodeDecodeError:
+                # Try a different encoding if utf-8 fails
+                text_content = content.decode('latin-1')
 
         # Split into chunks (simple sentence splitting for now)
-        chunks = [s.strip() for s in text_content.split('.') if s.strip()]
+        # Use both period and newline as sentence delimiters
+        chunks = []
+        sentences = text_content.replace('\n', '. ').split('.')
+        for s in sentences:
+            s = s.strip()
+            if s:  # Only add non-empty chunks
+                chunks.append(s)
+
+        if not chunks:
+            raise HTTPException(status_code=400, detail="No readable content found in file")
 
         # Add to Chroma
         collection.add(

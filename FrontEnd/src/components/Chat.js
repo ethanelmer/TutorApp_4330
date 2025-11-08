@@ -17,6 +17,7 @@ const Chat = () => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [documentCount, setDocumentCount] = useState(0);
+    const fileInputRef = useRef(null);
 
     const messagesEndRef = useRef(null);
 
@@ -60,10 +61,25 @@ const Chat = () => {
     const handleFileUpload = async () => {
         if (!selectedFile) return;
 
+        // Check file size (limit to 10MB)
+        if (selectedFile.size > 10 * 1024 * 1024) {
+            setError('File size too large. Please upload files smaller than 10MB.');
+            return;
+        }
+
+        // Check file type
+        const allowedTypes = ['.txt', '.md', '.pdf'];
+        const fileExtension = selectedFile.name.toLowerCase().slice(selectedFile.name.lastIndexOf('.'));
+        if (!allowedTypes.includes(fileExtension)) {
+            setError('Invalid file type. Please upload .txt, .md, or .pdf files.');
+            return;
+        }
+
         const formData = new FormData();
         formData.append('file', selectedFile);
 
         try {
+            setError(null); // Clear any previous errors
             const response = await axios.post('http://127.0.0.1:8000/api/upload/', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
@@ -87,8 +103,13 @@ const Chat = () => {
             setUploadProgress(0);
         } catch (err) {
             console.error('Upload error:', err);
-            setError('Failed to upload file. Please try again.');
+            const errorMessage = err.response?.data?.detail || 'Failed to upload file. Please try again.';
+            setError(`Upload failed: ${errorMessage}`);
             setUploadProgress(0);
+            setMessages(prev => [...prev, {
+                sender: 'bot',
+                text: `❌ Failed to upload ${selectedFile.name}. ${errorMessage}`
+            }]);
         }
     };
 
@@ -202,14 +223,20 @@ const Chat = () => {
 
                 <div className="file-upload-area">
                     <div className="file-input-wrapper">
-                        <button className="file-upload-button">
-                            Choose File
-                        </button>
                         <input
                             type="file"
+                            ref={fileInputRef}
                             onChange={handleFileChange}
-                            accept=".txt,.md,.doc,.docx"
+                            accept=".txt,.md,.pdf"
+                            style={{ display: 'none' }}
                         />
+                        <button 
+                            className="file-upload-button"
+                            onClick={() => fileInputRef.current?.click()}
+                            type="button"
+                        >
+                            Choose File
+                        </button>
                     </div>
                     {selectedFile && (
                         <>
@@ -218,6 +245,7 @@ const Chat = () => {
                                 className="file-upload-button"
                                 onClick={handleFileUpload}
                                 disabled={!selectedFile || uploadProgress > 0}
+                                type="button"
                             >
                                 Upload
                             </button>
