@@ -7,8 +7,9 @@ from .chromaConnection import get_chroma_client
 import os
 from dotenv import load_dotenv
 
-# Load environment variables early
-load_dotenv()
+# Load environment variables early (explicitly load BackEnd/.env so running uvicorn from repo root still finds it)
+here = os.path.dirname(__file__)
+load_dotenv(os.path.join(here, '.env'))
 
 app = FastAPI()
 
