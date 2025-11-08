@@ -21,11 +21,19 @@ def get_chroma_client():
         return _client
 
     api_key = os.getenv("CHROMA_API_KEY")
+    # Backwards-compat/fallback: some users may have put the key under AZURE_OPENAI_KEY
+    # (or pasted the Chroma key into a different env var). Try that as a fallback.
+    if not api_key:
+        api_key = os.getenv("AZURE_OPENAI_KEY")
     tenant = os.getenv("CHROMA_TENANT")
     database = os.getenv("CHROMA_DATABASE", "TutorDatabase")
 
     if not api_key:
-        raise RuntimeError("CHROMA_API_KEY is not set. Add it to your .env or environment variables.")
+        raise RuntimeError("CHROMA_API_KEY (or AZURE_OPENAI_KEY) is not set. Add it to your BackEnd/.env or environment variables.")
+
+    # strip surrounding single/double quotes if the value was added with quotes in the .env file
+    if (api_key.startswith("'") and api_key.endswith("'")) or (api_key.startswith('"') and api_key.endswith('"')):
+        api_key = api_key[1:-1]
 
     try:
         _client = chromadb.CloudClient(
