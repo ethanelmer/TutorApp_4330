@@ -57,10 +57,24 @@ async def query_documents(query: ChatQuery):
             n_results=2  # Get top 2 most relevant documents
         )
         
-        # Format the response
-        if results and results['documents'] and results['documents'][0]:
-            context = "\n".join(results['documents'][0])
-            response = f"Based on the available documents: {context}"
+        # Format the response as readable Markdown (blockquotes for clarity)
+        if results and results.get('documents') and results['documents'][0]:
+            docs = results['documents'][0]
+            # Normalize whitespace in returned docs and limit length for readability
+            cleaned = []
+            for d in docs:
+                if not d:
+                    continue
+                txt = re.sub(r"_+", " ", d)
+                txt = re.sub(r"\s{2,}", " ", txt).strip()
+                cleaned.append(txt)
+
+            if not cleaned:
+                response = "I couldn't find any relevant information in the uploaded documents."
+            else:
+                # Render as blockquotes so frontend displays them neatly via ReactMarkdown
+                md_parts = [f"> {c}" for c in cleaned]
+                response = "Based on the available documents:\n\n" + "\n\n".join(md_parts)
         else:
             response = "I couldn't find any relevant information in the uploaded documents."
             
