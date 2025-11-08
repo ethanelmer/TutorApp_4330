@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 import uvicorn
-from chromaConnection import get_chroma_client
+from .chromaConnection import get_chroma_client
 import os
 from dotenv import load_dotenv
 
