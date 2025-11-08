@@ -2,13 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
 import './Chat.css';
+import './FileUpload.css';
 
 // Import the LSU logo
 import lsuLogo from './images/LSU-Logo.png';
 
 const Chat = () => {
     const [messages, setMessages] = useState([
-        { sender: 'bot', text: 'Hello! How can I assist you today?' },
+        { sender: 'bot', text: 'Hello! How can I assist you today? You can upload study materials and I\'ll help you understand them.' },
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +17,9 @@ const Chat = () => {
     const [showMenu, setShowMenu] = useState(false);
     const [headerTitle, setHeaderTitle] = useState(''); // Header title state
     const [pastChats] = useState(['Chat 1', 'Chat 2', 'Chat 3', 'Chat 4', 'Chat 5','Chat 6','Chat 7','Chat 8','Chat 8','Chat 10','Chat 11','Chat 12','Chat 13','Chat 14']); // Sample past chats
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [documentCount, setDocumentCount] = useState(0);
 
     const messagesEndRef = useRef(null);
 
@@ -23,6 +27,20 @@ const Chat = () => {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    // Fetch document count on component mount
+    useEffect(() => {
+        fetchDocumentCount();
+    }, []);
+
+    const fetchDocumentCount = async () => {
+        try {
+            const response = await axios.get('http://127.0.0.1:8000/api/documents/');
+            setDocumentCount(response.data.document_count);
+        } catch (err) {
+            console.error('Error fetching document count:', err);
+        }
+    };
 
     const handleMenuToggle = () => {
         setShowMenu((prevShowMenu) => !prevShowMenu); // Toggle dropdown visibility
@@ -32,6 +50,49 @@ const Chat = () => {
         setShowMenu(false); // Close menu after selecting an option
         setHeaderTitle(option); // Update the header title
         console.log(`Option selected: ${option}`);
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setSelectedFile(file);
+            setUploadProgress(0);
+        }
+    };
+
+    const handleFileUpload = async () => {
+        if (!selectedFile) return;
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        try {
+            const response = await axios.post('http://127.0.0.1:8000/api/upload/', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+                onUploadProgress: (progressEvent) => {
+                    const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    setUploadProgress(progress);
+                },
+            });
+
+            setMessages(prev => [...prev, {
+                sender: 'bot',
+                text: `✅ Successfully uploaded and processed ${selectedFile.name}. ${response.data.chunks} chunks were created.`
+            }]);
+            
+            // Refresh document count
+            fetchDocumentCount();
+            
+            // Reset file selection
+            setSelectedFile(null);
+            setUploadProgress(0);
+        } catch (err) {
+            console.error('Upload error:', err);
+            setError('Failed to upload file. Please try again.');
+            setUploadProgress(0);
+        }
     };
 
     const handleSend = async (messageText) => {
@@ -44,10 +105,10 @@ const Chat = () => {
         setError(null);
 
         try {
-            // Send message to Django backend
+            // Send message to our FastAPI backend
             const response = await axios.post(
-                'http://127.0.0.1:8000/api/query/',  // Django endpoint
-                { text: messageText },  // Sending the user message in JSON format
+                'http://127.0.0.1:8000/api/query/',
+                { text: messageText },
                 {
                     headers: {
                         'Content-Type': 'application/json',
@@ -55,14 +116,13 @@ const Chat = () => {
                 }
             );
 
-            // Retrieve the bot's response from Django's response data
-            const botMessage = response.data.message;  // Assume Django returns { "message": "response text" }
+            const botMessage = response.data.message;
             setMessages((prevMessages) => [
                 ...prevMessages,
                 { sender: 'bot', text: botMessage },
             ]);
         } catch (err) {
-            console.error('Error fetching response from Django:', err);
+            console.error('Error fetching response:', err);
             setError('Sorry, something went wrong. Please try again.');
             setMessages((prevMessages) => [
                 ...prevMessages,
@@ -126,10 +186,16 @@ const Chat = () => {
                     <div ref={messagesEndRef} />
                 </div>
 
+                {documentCount > 0 && (
+                    <div className="document-list">
+                        📚 <span className="document-count">{documentCount}</span> document chunks available for reference
+                    </div>
+                )}
+
                 <form className="input-area" onSubmit={handleFormSubmit}>
                     <input
                         type="text"
-                        placeholder="Message Mike..."
+                        placeholder="Ask me about your documents..."
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         disabled={isLoading}
@@ -138,6 +204,36 @@ const Chat = () => {
                         ➤
                     </button>
                 </form>
+
+                <div className="file-upload-area">
+                    <div className="file-input-wrapper">
+                        <button className="file-upload-button">
+                            Choose File
+                        </button>
+                        <input
+                            type="file"
+                            onChange={handleFileChange}
+                            accept=".txt,.md,.doc,.docx"
+                        />
+                    </div>
+                    {selectedFile && (
+                        <>
+                            <span className="selected-file">{selectedFile.name}</span>
+                            <button
+                                className="file-upload-button"
+                                onClick={handleFileUpload}
+                                disabled={!selectedFile || uploadProgress > 0}
+                            >
+                                Upload
+                            </button>
+                        </>
+                    )}
+                    {uploadProgress > 0 && (
+                        <span className="upload-progress">
+                            Uploading: {uploadProgress}%
+                        </span>
+                    )}
+                </div>
 
                 {error && <div className="error-message">{error}</div>}
             </div>
