@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
+import re
 import uvicorn
 from BackEnd.chromaConnection import get_chroma_client
 import os
@@ -111,24 +112,70 @@ async def upload_file(file: UploadFile = File(...)):
                 # Try a different encoding if utf-8 fails
                 text_content = content.decode('latin-1')
 
-        # Split into chunks (simple sentence splitting for now)
-        # Use both period and newline as sentence delimiters
-        chunks = []
-        sentences = text_content.replace('\n', '. ').split('.')
+        # Chunk the text into larger pieces to avoid creating too many small records
+        # Strategy: split into sentence-like pieces then accumulate into chunks of ~chunk_size_chars
+        chunk_size_chars = int(os.getenv("CHUNK_SIZE_CHARS", "800"))
+        max_chunks_per_file = int(os.getenv("MAX_CHUNKS_PER_FILE", "200"))
+
+        # Normalize newlines and split on sentence boundaries (simple heuristic)
+        normalized = re.sub(r"\s+", " ", text_content.replace('\n', ' ')).strip()
+        if not normalized:
+            raise HTTPException(status_code=400, detail="No readable content found in file")
+
+        # Very simple sentence splitter (keep punctuation)
+        sentences = re.split(r'(?<=[\.!?])\s+', normalized)
+
+        chunks: List[str] = []
+        current = []
+        current_len = 0
         for s in sentences:
             s = s.strip()
-            if s:  # Only add non-empty chunks
-                chunks.append(s)
+            if not s:
+                continue
+            # If adding this sentence would exceed the target chunk size, flush current
+            if current_len + len(s) + 1 > chunk_size_chars and current:
+                chunks.append(' '.join(current).strip())
+                current = [s]
+                current_len = len(s)
+            else:
+                current.append(s)
+                current_len += len(s) + 1
+
+            # Cap number of chunks for a single file
+            if len(chunks) >= max_chunks_per_file:
+                break
+
+        if current and len(chunks) < max_chunks_per_file:
+            chunks.append(' '.join(current).strip())
 
         if not chunks:
             raise HTTPException(status_code=400, detail="No readable content found in file")
 
+        # Check collection count and enforce a conservative quota to avoid cloud tenant limits
+        try:
+            existing_count = collection.count()
+        except Exception:
+            # If count isn't available, fall back to 0 to avoid blocking
+            existing_count = 0
+
+        chroma_quota = int(os.getenv("CHROMA_MAX_RECORDS", "300"))
+        if existing_count + len(chunks) > chroma_quota:
+            raise HTTPException(status_code=400, detail=(
+                f"Quota exceeded: adding {len(chunks)} records would exceed the allowed number of records. "
+                f"Current usage: {existing_count}, quota limit: {chroma_quota}. "
+                "Reduce the number of chunks (increase CHUNK_SIZE_CHARS or set MAX_CHUNKS_PER_FILE), "
+                "or request a quota increase from your Chroma provider."))
+
         # Add to Chroma
-        collection.add(
-            documents=chunks,
-            metadatas=[{"source": file.filename} for _ in chunks],
-            ids=[f"{file.filename}-{i}" for i in range(len(chunks))]
-        )
+        try:
+            collection.add(
+                documents=chunks,
+                metadatas=[{"source": file.filename} for _ in chunks],
+                ids=[f"{file.filename}-{i}" for i in range(len(chunks))]
+            )
+        except Exception as add_err:
+            # Surface provider error (e.g., quota from cloud service)
+            raise HTTPException(status_code=500, detail=f"Error adding documents to vector DB: {str(add_err)}")
 
         return {
             "message": f"Successfully processed {file.filename}",
