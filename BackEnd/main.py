@@ -1,3 +1,17 @@
+import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = str(Path(__file__).parents[1])  # Go up one level from BackEnd directory
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+import os
+import sys
+# Add the project root to the Python path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -5,7 +19,6 @@ from typing import List
 import re
 import uvicorn
 from BackEnd.chromaConnection import get_chroma_client
-import os
 import io
 from PyPDF2 import PdfReader
 from dotenv import load_dotenv
@@ -54,13 +67,12 @@ async def query_documents(query: ChatQuery):
         # Search the collection for relevant documents
         results = collection.query(
             query_texts=[query.text],
-            n_results=2  # Get top 2 most relevant documents
+            n_results=5  # Get top 5 most relevant documents for better context
         )
         
-        # Format the response as readable Markdown (blockquotes for clarity)
         if results and results.get('documents') and results['documents'][0]:
             docs = results['documents'][0]
-            # Normalize whitespace in returned docs and limit length for readability
+            # Normalize whitespace in returned docs
             cleaned = []
             for d in docs:
                 if not d:
@@ -70,15 +82,14 @@ async def query_documents(query: ChatQuery):
                 cleaned.append(txt)
 
             if not cleaned:
-                response = "I couldn't find any relevant information in the uploaded documents."
-            else:
-                # Render as blockquotes so frontend displays them neatly via ReactMarkdown
-                md_parts = [f"> {c}" for c in cleaned]
-                response = "Based on the available documents:\n\n" + "\n\n".join(md_parts)
-        else:
-            response = "I couldn't find any relevant information in the uploaded documents."
+                return {"message": "I couldn't find any relevant information in the uploaded documents."}
             
-        return {"message": response}
+            # Use the model to generate a response based on the chunks and query
+            from BackEnd.model_service import get_ai_response
+            response = get_ai_response(query.text, cleaned)
+            return {"message": response}
+        else:
+            return {"message": "I couldn't find any relevant information in the uploaded documents."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
