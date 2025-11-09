@@ -131,15 +131,8 @@ const Chat = () => {
         // Add user message immediately
         const userMessage = { sender: 'user', text: messageText };
         setMessages((prevMessages) => [...prevMessages, userMessage]);
-        setInput('');
         setIsLoading(true);
         setError(null);
-
-        // Add a loading message
-        setMessages((prevMessages) => [
-            ...prevMessages,
-            { sender: 'bot', text: '⌛ Let me think about that...', isLoading: true }
-        ]);
 
         try {
             // Send message to our FastAPI backend
@@ -153,20 +146,24 @@ const Chat = () => {
                 }
             );
 
-            // Replace loading message with actual response
+            // Add bot response to messages
             setMessages((prevMessages) => [
-                ...prevMessages.slice(0, -1), // Remove loading message
+                ...prevMessages,
                 { sender: 'bot', text: response.data.message }
             ]);
+            
+            // Only clear input after successful response
+            setInput('');
         } catch (err) {
             console.error('Error fetching response:', err);
             const errorMessage = err.response?.data?.detail || 'Sorry, something went wrong. Please try again.';
-            // Replace loading message with error
+            // Add error message
             setMessages((prevMessages) => [
-                ...prevMessages.slice(0, -1), // Remove loading message
+                ...prevMessages,
                 { sender: 'bot', text: `❌ ${errorMessage}` }
             ]);
             setError(errorMessage);
+            // Don't clear input on error so user can try again
         } finally {
             setIsLoading(false);
         }

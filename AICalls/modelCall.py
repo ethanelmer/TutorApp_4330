@@ -52,16 +52,3 @@ def get_model_response(prompt: str, chunks: List[str]) -> str:
     
     # Return the model's response
     return completion.choices[0].message.content
-
-# Example usage:
-if __name__ == "__main__":
-    # Test prompt and chunks
-    test_prompt = "What are the key concepts covered in the document?"
-    test_chunks = [
-        "The document discusses machine learning fundamentals.",
-        "It covers topics like neural networks and deep learning.",
-        "Various applications of AI are presented."
-    ]
-    
-    response = get_model_response(test_prompt, test_chunks)
-    print(response)
