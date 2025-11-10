@@ -224,5 +224,58 @@ async def list_documents():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/quiz/generate/")
+async def generate_quiz():
+    """Generate a 20-question quiz from all documents in the database."""
+    try:
+        if collection is None:
+            raise HTTPException(status_code=503, detail="Search collection is not initialized yet")
+        
+        # Get all documents from the collection
+        count = collection.count()
+        if count == 0:
+            raise HTTPException(status_code=400, detail="No documents available. Please upload study materials first.")
+        
+        # Retrieve all documents (limit to reasonable amount to avoid token limits)
+        max_docs = min(count, 100)  # Limit to 100 chunks to avoid token overflow
+        results = collection.get(
+            limit=max_docs,
+            include=['documents']
+        )
+        
+        if not results or not results.get('documents'):
+            raise HTTPException(status_code=400, detail="Could not retrieve documents from database")
+        
+        docs = results['documents']
+        
+        # Create a special prompt for quiz generation
+        quiz_prompt = """Based on all the provided study materials, create a comprehensive 20-question quiz to test understanding of the key concepts.
+
+For each question, provide:
+1. The question itself
+2. The correct answer with explanation
+
+Format your response as JSON with the following structure:
+{
+  "questions": [
+    {
+      "question": "Question text here?",
+      "answer": "Detailed answer with explanation here."
+    }
+  ]
+}
+
+Make the questions varied - include multiple choice concepts, short answer, and application questions. Cover different topics from the materials."""
+        
+        # Use the model to generate the quiz
+        from BackEnd.model_service import get_ai_response
+        response = get_ai_response(quiz_prompt, docs)
+        
+        return {"quiz": response}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)

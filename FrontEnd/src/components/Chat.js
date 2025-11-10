@@ -4,7 +4,7 @@ import axios from 'axios';
 import './Chat.css';
 import './FileUpload.css';
 
-const Chat = () => {
+const Chat = ({ onSwitchToQuiz }) => {
     const [messages, setMessages] = useState([
         { sender: 'bot', text: 'Hello! How can I assist you today? You can upload study materials and I\'ll help you understand them.' },
     ]);
@@ -186,8 +186,11 @@ const Chat = () => {
                 </div>
                 {showMenu && (
                     <div className="menu-dropdown-sidebar">
-                        <p onClick={() => handleMenuOptionClick("Guided Training")}>Guided Training</p>
-                        <p onClick={() => handleMenuOptionClick("Questions and Answers")}>Questions and Answers</p>
+                        <p onClick={() => handleMenuOptionClick('New Chat')}>New Chat</p>
+                        <p onClick={() => {
+                            setShowMenu(false);
+                            if (onSwitchToQuiz) onSwitchToQuiz();
+                        }}>Quiz Mode</p>
                     </div>
                 )}
 
