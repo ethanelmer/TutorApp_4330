@@ -1,10 +1,33 @@
-body {
+:root {
+  /* Navy & white theme palette */
+  --navy-900: #0b1f3a; /* deep navy */
+  --navy-800: #0d2749;
+  --navy-700: #12325c;
+  --navy-600: #1e3a8a; /* accessible blue for focus */
+  --navy-500: #274690;
+
+  --white: #ffffff;
+  --text-on-navy: #ffffff;
+  --text-on-white: #0b1f3a;
+  --accent-blue: #3b82f6; /* for links/highlights */
+
+  --shadow-strong: rgba(0, 0, 0, 0.25);
+  --shadow-soft: rgba(0, 0, 0, 0.15);
+  --border-light: rgba(255, 255, 255, 0.18);
+  --border-lighter: rgba(255, 255, 255, 0.12);
+  --border-dark: rgba(11, 31, 58, 0.25);
+}
+
+html, body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-800) 100%);
+  color: var(--text-on-navy);
+  height: 100%;
 }
 
 code {

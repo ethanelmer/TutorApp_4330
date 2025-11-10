@@ -29,10 +29,24 @@ load_dotenv(os.path.join(here, '.env'))
 
 app = FastAPI()
 
-# Add CORS middleware
+# Configure CORS with sensible dev defaults
+origins_env = os.getenv("FRONTEND_ORIGINS") or os.getenv("FRONTEND_ORIGIN")
+if origins_env:
+    allowed_origins = [o.strip() for o in origins_env.split(",") if o.strip()]
+else:
+    # Default dev origins
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+# Optional: allow all in dev by setting DEV_ALLOW_ALL_ORIGINS=true
+if os.getenv("DEV_ALLOW_ALL_ORIGINS", "false").lower() in ("1", "true", "yes"):
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")],  # Your React frontend URL
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,10 +79,15 @@ async def query_documents(query: ChatQuery):
             raise HTTPException(status_code=503, detail="Search collection is not initialized yet")
 
         # Search the collection for relevant documents
-        results = collection.query(
-            query_texts=[query.text],
-            n_results=5  # Get top 5 most relevant documents for better context
-        )
+        print(f"[query] incoming text length={len(query.text)}")
+        try:
+            results = collection.query(
+                query_texts=[query.text],
+                n_results=5  # Get top 5 most relevant documents for better context
+            )
+        except Exception as chroma_err:
+            print(f"[query] Chroma query failed: {chroma_err}")
+            raise HTTPException(status_code=500, detail=f"Vector search failed: {chroma_err}")
         
         if results and results.get('documents') and results['documents'][0]:
             docs = results['documents'][0]
@@ -86,12 +105,39 @@ async def query_documents(query: ChatQuery):
             
             # Use the model to generate a response based on the chunks and query
             from BackEnd.model_service import get_ai_response
-            response = get_ai_response(query.text, cleaned)
+            print(f"[query] sending {len(cleaned)} cleaned docs to model; total_chars={sum(len(c) for c in cleaned)}")
+            try:
+                response = get_ai_response(query.text, cleaned)
+                print(f"[query] model response length={len(response)}")
+            except Exception as model_err:
+                print(f"[query] model error: {model_err}")
+                raise HTTPException(status_code=500, detail=f"Model error: {model_err}")
             return {"message": response}
         else:
             return {"message": "I couldn't find any relevant information in the uploaded documents."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/health")
+async def health():
+    """Simple health and configuration check for troubleshooting."""
+    try:
+        initialized = collection is not None
+        count = None
+        if initialized:
+            try:
+                count = collection.count()
+            except Exception:
+                count = None
+        return {
+            "status": "ok",
+            "collection_initialized": initialized,
+            "document_count": count,
+            "allowed_origins": allowed_origins,
+        }
+    except Exception as e:
+        # Even if something fails, return a 200 with info to avoid CORS masking
+        return {"status": "degraded", "error": str(e), "allowed_origins": allowed_origins}
 
 @app.post("/api/upload/")
 async def upload_file(file: UploadFile = File(...)):
@@ -223,6 +269,129 @@ async def list_documents():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/quiz/generate/")
+async def generate_quiz():
+    """Generate a 20-question quiz from all documents in the database.
+
+    To keep the request reliable for the upstream model, we aggressively cap
+    the amount of context sent: a maximum number of docs and a global character
+    limit. Both can be tuned via environment variables.
+    """
+    try:
+        if collection is None:
+            raise HTTPException(status_code=503, detail="Search collection is not initialized yet")
+
+        # Get all documents from the collection
+        count = collection.count()
+        if count == 0:
+            raise HTTPException(status_code=400, detail="No documents available. Please upload study materials first.")
+
+        # Limits (tunable via env)
+        max_docs = int(os.getenv("QUIZ_MAX_DOCS", "60"))
+        per_doc_char_limit = int(os.getenv("QUIZ_PER_DOC_CHAR_LIMIT", "600"))
+        total_char_budget = int(os.getenv("QUIZ_TOTAL_CHAR_BUDGET", "16000"))
+
+        # Retrieve a subset of documents
+        print(f"[quiz] total collection count={count}; retrieving up to {min(count, max_docs)} docs")
+        try:
+            results = collection.get(
+                limit=min(count, max_docs),
+                include=["documents"]
+            )
+        except Exception as get_err:
+            print(f"[quiz] collection.get failed: {get_err}")
+            raise HTTPException(status_code=500, detail=f"Vector retrieval failed: {get_err}")
+
+        if not results or not results.get("documents"):
+            raise HTTPException(status_code=400, detail="Could not retrieve documents from database")
+
+        docs_raw = results["documents"]
+
+        # Some providers may return nested lists; flatten defensively
+        flat_docs: List[str] = []
+        for d in docs_raw:
+            if isinstance(d, list):
+                flat_docs.extend([str(x) for x in d if x])
+            elif d:
+                flat_docs.append(str(d))
+
+        if not flat_docs:
+            raise HTTPException(status_code=400, detail="No document text retrieved from database")
+
+        # Trim each doc and enforce a global budget
+        trimmed: List[str] = []
+        budget_left = total_char_budget
+        for doc in flat_docs:
+            if budget_left <= 0:
+                break
+            snippet = doc[:per_doc_char_limit]
+            # Ensure we don't exceed total budget
+            if len(snippet) > budget_left:
+                snippet = snippet[:max(0, budget_left)]
+            if snippet:
+                trimmed.append(snippet)
+                budget_left -= len(snippet)
+
+        if not trimmed:
+            raise HTTPException(status_code=400, detail="Content budget exhausted while preparing quiz context")
+
+        # Quiz prompt (concise to save tokens)
+        quiz_prompt = (
+            "Create a 20-question study quiz from the provided course materials. "
+            "Diversify types (concept recall, short answer, application). "
+            "Return STRICT JSON with: {\"questions\":[{\"question\":string,\"answer\":string}...]}. "
+            "Keep questions self-contained and answers concise with a 1–2 sentence explanation."
+        )
+
+        # Use the model to generate the quiz
+        from BackEnd.model_service import get_ai_response
+        print(f"[quiz] sending {len(trimmed)} docs; total_chars={sum(len(t) for t in trimmed)} budget_left={budget_left}")
+        try:
+            response = get_ai_response(quiz_prompt, trimmed)
+            print(f"[quiz] model response length={len(response)}")
+        except Exception as model_err:
+            print(f"[quiz] model error: {model_err}")
+            raise HTTPException(status_code=500, detail=f"Model error: {model_err}")
+
+        return {"quiz": response, "used_docs": len(trimmed)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Provide a clearer error message while keeping details for logs
+        raise HTTPException(status_code=500, detail=f"Quiz generation failed: {str(e)}")
+
+@app.get("/api/diagnostics/chroma")
+async def chroma_diagnostics():
+    """Return diagnostic information about the Chroma collection for debugging."""
+    info = {
+        "initialized": collection is not None,
+    }
+    if collection is None:
+        return info
+    try:
+        count = collection.count()
+        info["count"] = count
+        sample_limit = min(count, 5)
+        if sample_limit > 0:
+            try:
+                sample = collection.get(limit=sample_limit, include=["documents", "metadatas", "ids"])
+                docs = sample.get("documents") or []
+                flat = []
+                for d in docs:
+                    if isinstance(d, list):
+                        flat.extend([x for x in d if x])
+                    else:
+                        flat.append(d)
+                info["sample_docs"] = [
+                    {"chars": len(s), "preview": s[:160]} for s in flat[:sample_limit]
+                ]
+                info["sample_ids"] = (sample.get("ids") or [])[:sample_limit]
+            except Exception as sample_err:
+                info["sample_error"] = str(sample_err)
+    except Exception as count_err:
+        info["count_error"] = str(count_err)
+    return info
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
