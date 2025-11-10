@@ -6,8 +6,8 @@ html, body {
   margin: 0;
   padding: 0;
   font-family: 'Roboto', sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-800) 100%);
+  color: var(--text-on-navy);
   height: 100%;
 }
 
@@ -22,13 +22,13 @@ html, body {
 /* Sidebar */
 .sidebar {
   width: 200px;
-  background: rgba(0,0,0,0.25);
-  border-right: 2px solid rgba(255,255,255,0.15);
+  background: rgba(11,31,58,0.55);
+  border-right: 2px solid var(--border-light);
   padding: 18px 16px;
   display: flex;
   flex-direction: column;
   position: relative;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 12px var(--shadow-strong);
 }
 
 .sidebar-header { display: flex; align-items: center; gap: 10px; }
@@ -41,13 +41,14 @@ html, body {
   top: 55px;
   left: 12px;
   right: 12px;
-  background: rgba(0,0,0,0.55);
+  background: rgba(13,39,73,0.85);
   backdrop-filter: blur(12px);
   padding: 12px 14px;
   border-radius: 12px;
-  box-shadow: 0 8px 22px rgba(0,0,0,0.35);
+  box-shadow: 0 8px 22px var(--shadow-strong);
   animation: fadeIn .25s ease;
   z-index: 10;
+  border: 1px solid var(--border-light);
 }
 
 .menu-dropdown-sidebar p {
@@ -78,14 +79,14 @@ html, body {
   padding: 12px 14px;
   margin-bottom: 6px;
   background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid var(--border-lighter);
   border-radius: 10px;
   font-size: 14px;
-  color: #fff;
+  color: var(--text-on-navy);
   cursor: pointer;
-  transition: background .25s, box-shadow .25s;
+  transition: background .25s, box-shadow .25s, border-color .25s;
 }
-.past-chat-item:hover { background: rgba(255,255,255,0.15); box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+.past-chat-item:hover { background: rgba(255,255,255,0.12); box-shadow: 0 4px 12px var(--shadow-soft); border-color: var(--border-light); }
 
 /* Main chat area */
 .main-chat { flex: 1; display: flex; flex-direction: column; position: relative; }
@@ -119,13 +120,13 @@ html, body {
 }
 
 .message.user .message-content {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.25);
+  background: linear-gradient(135deg, var(--navy-700) 0%, var(--navy-500) 100%);
+  color: var(--text-on-navy);
+  border: 1px solid var(--border-light);
 }
 .message.bot .message-content {
-  background: rgba(255,255,255,0.92);
-  color: #2d3748;
+  background: var(--white);
+  color: var(--text-on-white);
 }
 
 .message-content h1, .message-content h2, .message-content h3 { margin: 10px 0 6px 0; font-weight: 600; }
@@ -141,10 +142,10 @@ html, body {
 /* Document list banner */
 .document-list {
   padding: 10px 20px;
-  background: rgba(0,0,0,0.35);
-  color: #fff;
+  background: rgba(11,31,58,0.35);
+  color: var(--text-on-navy);
   font-size: 14px;
-  border-top: 1px solid rgba(255,255,255,0.18);
+  border-top: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -156,9 +157,9 @@ html, body {
   display: flex;
   gap: 14px;
   padding: 18px 26px 24px 26px;
-  background: rgba(0,0,0,0.28);
+  background: rgba(11,31,58,0.4);
   backdrop-filter: blur(10px);
-  border-top: 2px solid rgba(255,255,255,0.12);
+  border-top: 2px solid var(--border-lighter);
 }
 .input-area input {
   flex: 1;
@@ -171,23 +172,23 @@ html, body {
   color: #2d3748;
   transition: box-shadow .25s, border-color .25s;
 }
-.input-area input:focus { box-shadow: 0 0 0 4px rgba(102,126,234,0.4); border-color: #667eea; }
+.input-area input:focus { box-shadow: 0 0 0 4px rgba(59,130,246,0.45); border-color: var(--accent-blue); }
 .input-area input::placeholder { color: #6b7280; }
 
 .input-area button {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--navy-600) 0%, var(--navy-500) 100%);
+  color: var(--text-on-navy);
   font-size: 22px;
   font-weight: 600;
-  border: none;
+  border: 1px solid var(--border-light);
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(245,87,108,0.4);
-  transition: transform .25s, box-shadow .25s;
+  box-shadow: 0 6px 18px var(--shadow-soft);
+  transition: transform .25s, box-shadow .25s, background .25s;
 }
-.input-area button:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(245,87,108,0.55); }
+.input-area button:hover { transform: translateY(-3px); box-shadow: 0 10px 26px var(--shadow-strong); background: linear-gradient(135deg, var(--navy-600) 0%, var(--navy-700) 100%); }
 .input-area button:disabled { opacity: .5; cursor: not-allowed; }
 
 
