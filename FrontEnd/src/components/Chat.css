@@ -13,7 +13,7 @@ html, body {
 
 .chat-container {
   display: flex;
-  height: 100vh;
+  height: calc(100vh - var(--header-height));
   width: 100vw;
   overflow: hidden;
   backdrop-filter: blur(4px);

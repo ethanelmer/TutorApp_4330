@@ -11,8 +11,6 @@ const Chat = ({ onSwitchToQuiz }) => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [showMenu, setShowMenu] = useState(false);
-    const [headerTitle, setHeaderTitle] = useState(''); // Header title state
     const [pastChats] = useState(['Chat 1', 'Chat 2', 'Chat 3', 'Chat 4', 'Chat 5','Chat 6','Chat 7','Chat 8','Chat 8','Chat 10','Chat 11','Chat 12','Chat 13','Chat 14']); // Sample past chats
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -38,16 +36,6 @@ const Chat = ({ onSwitchToQuiz }) => {
         } catch (err) {
             console.error('Error fetching document count:', err);
         }
-    };
-
-    const handleMenuToggle = () => {
-        setShowMenu((prevShowMenu) => !prevShowMenu); // Toggle dropdown visibility
-    };
-
-    const handleMenuOptionClick = (option) => {
-        setShowMenu(false); // Close menu after selecting an option
-        setHeaderTitle(option); // Update the header title
-        console.log(`Option selected: ${option}`);
     };
 
     const handleFileChange = (e) => {
@@ -181,22 +169,6 @@ const Chat = ({ onSwitchToQuiz }) => {
         <div className="chat-container">
             {/* Sidebar */}
             <div className="sidebar">
-                <div className="sidebar-header">
-                    <div className="header-left">
-                        <div className="menu-icon" onClick={handleMenuToggle}>☰</div>
-                        <span className="header-title">{headerTitle}</span>
-                    </div>
-                </div>
-                {showMenu && (
-                    <div className="menu-dropdown-sidebar">
-                        <p onClick={() => handleMenuOptionClick('New Chat')}>New Chat</p>
-                        <p onClick={() => {
-                            setShowMenu(false);
-                            if (onSwitchToQuiz) onSwitchToQuiz();
-                        }}>Quiz Mode</p>
-                    </div>
-                )}
-
                 {/* Scrollable List of Past Chats */}
                 <div className="past-chats">
                     {pastChats.map((chat, index) => (
