@@ -156,7 +156,10 @@ const Chat = ({ onSwitchToQuiz }) => {
             setInput('');
         } catch (err) {
             console.error('Error fetching response:', err);
-            const errorMessage = err.response?.data?.detail || 'Sorry, something went wrong. Please try again.';
+            let errorMessage = err.response?.data?.detail || 'Sorry, something went wrong. Please try again.';
+            if (err.message && err.message.includes('Network Error')) {
+                errorMessage = 'Cannot connect to the server. Please ensure the backend is running on http://127.0.0.1:8000 and that CORS allows your frontend origin (http://localhost:3000 or http://127.0.0.1:3000).';
+            }
             // Add error message
             setMessages((prevMessages) => [
                 ...prevMessages,
