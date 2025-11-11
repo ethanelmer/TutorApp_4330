@@ -39,20 +39,30 @@ if not hasattr(ModelCall, 'get_model_response'):
 get_model_response = ModelCall.get_model_response
 
 
-def get_ai_response(prompt: str, chunks: List[str]) -> str:
+def get_ai_response(prompt: str, chunks: List[str], conversation_history: str = None) -> str:
     """Get a response from the AI model using the provided prompt and context chunks.
+
+    Args:
+        prompt: The user's question or prompt
+        chunks: List of relevant document chunks for context
+        conversation_history: Optional formatted conversation history string
 
     In development, set environment variable DEBUG=true to include the exception traceback
     text in the returned message. In production the message is kept generic to avoid
     leaking sensitive info.
     """
     try:
-        response = get_model_response(prompt, chunks)
+        response = get_model_response(prompt, chunks, conversation_history=conversation_history)
         return response
     except Exception as e:
         # Print full traceback to server logs for debugging
         print("Error getting model response:")
         traceback.print_exc()
+
+        # Check if it's a rate limit error
+        error_str = str(e)
+        if "rate_limit" in error_str.lower() or "429" in error_str:
+            return "⏱️ The AI service is currently experiencing high demand. Please wait 10-20 seconds and try your question again."
 
         # Return a more helpful message when DEBUG=true
         debug = os.getenv('DEBUG', 'false').lower() in ('1', 'true', 'yes')
