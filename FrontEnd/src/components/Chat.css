@@ -107,8 +107,11 @@ html, body {
   cursor: pointer;
   transition: background .25s, box-shadow .25s, border-color .25s;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  position: relative;
 }
 .past-chat-item:hover {
   background: rgba(255,255,255,0.12);
@@ -119,6 +122,14 @@ html, body {
   background: rgba(255,255,255,0.15);
   border-color: var(--accent-blue);
   box-shadow: 0 4px 12px var(--shadow-soft);
+}
+
+.chat-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .chat-preview {
@@ -133,6 +144,39 @@ html, body {
   font-size: 11px;
   color: rgba(255,255,255,0.6);
   font-weight: 400;
+}
+
+.delete-thread-button {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 18px;
+  font-weight: 600;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .2s, color .2s;
+  flex-shrink: 0;
+  opacity: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.past-chat-item:hover .delete-thread-button {
+  opacity: 1;
+}
+
+.delete-thread-button:hover {
+  background: rgba(255,59,48,0.15);
+  color: #ff6b6b;
+}
+
+.delete-thread-button:active {
+  background: rgba(255,59,48,0.25);
 }
 
 /* Main chat area */

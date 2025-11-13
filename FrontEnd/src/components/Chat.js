@@ -92,6 +92,35 @@ const Chat = ({ onSwitchToQuiz }) => {
         await fetchPastThreads();
     };
 
+    // Handle deleting a thread
+    const handleDeleteThread = async (threadId, event) => {
+        // Prevent triggering the loadThread function when clicking delete
+        event.stopPropagation();
+
+        // Confirm deletion
+        if (!window.confirm('Are you sure you want to delete this chat thread?')) {
+            return;
+        }
+
+        try {
+            await axios.delete(`http://127.0.0.1:8000/api/chat/thread/${threadId}`);
+
+            // If we deleted the current thread, create a new one
+            if (currentThreadId === threadId) {
+                setMessages([
+                    { sender: 'bot', text: 'Hello! How can I assist you today? You can upload study materials and I\'ll help you understand them.' }
+                ]);
+                await createNewThread();
+            }
+
+            // Refresh the list of threads
+            await fetchPastThreads();
+        } catch (err) {
+            console.error('Error deleting thread:', err);
+            setError('Failed to delete chat thread');
+        }
+    };
+
     const fetchDocumentCount = async () => {
         try {
             const response = await axios.get('http://127.0.0.1:8000/api/documents/');
@@ -253,10 +282,19 @@ const Chat = ({ onSwitchToQuiz }) => {
                             className={`past-chat-item ${currentThreadId === thread.thread_id ? 'active' : ''}`}
                             onClick={() => loadThread(thread.thread_id)}
                         >
-                            <div className="chat-preview">{thread.preview}</div>
-                            <div className="chat-meta">
-                                {thread.message_count} messages
+                            <div className="chat-item-content">
+                                <div className="chat-preview">{thread.preview}</div>
+                                <div className="chat-meta">
+                                    {thread.message_count} messages
+                                </div>
                             </div>
+                            <button
+                                className="delete-thread-button"
+                                onClick={(e) => handleDeleteThread(thread.thread_id, e)}
+                                title="Delete this chat"
+                            >
+                                ✕
+                            </button>
                         </div>
                     ))}
                 </div>
