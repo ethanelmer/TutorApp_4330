@@ -54,6 +54,7 @@ app.add_middleware(
 
 # Collection will be created on startup once the Chroma client is available
 collection = None
+chat_memory = None
 
 
 @app.on_event("startup")
@@ -62,15 +63,149 @@ def startup_event():
 
     Delaying creation to startup gives clearer errors and avoids network calls at import time.
     """
-    global collection
+    global collection, chat_memory
     client = get_chroma_client()
     collection = client.get_or_create_collection(
         name="study_materials",
         metadata={"hnsw:space": "cosine"}  # Using cosine similarity for searches
     )
 
+    # Initialize chat memory manager
+    from BackEnd.chat_memory import ChatMemoryManager
+    chat_memory = ChatMemoryManager()
+
 class ChatQuery(BaseModel):
     text: str
+
+class ThreadMessage(BaseModel):
+    text: str
+    thread_id: str
+
+# === Chat Thread Endpoints ===
+
+@app.post("/api/chat/thread/new")
+async def create_new_thread():
+    """Create a new chat thread and return the thread_id."""
+    try:
+        if chat_memory is None:
+            raise HTTPException(status_code=503, detail="Chat memory service is not initialized yet")
+
+        thread_id = chat_memory.create_thread()
+        return {"thread_id": thread_id, "message": "New chat thread created"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat/thread/{thread_id}/message")
+async def send_thread_message(thread_id: str, query: ChatQuery):
+    """
+    Send a message in a specific thread and get AI response.
+    This endpoint includes chat history context in the AI response.
+    """
+    try:
+        if chat_memory is None:
+            raise HTTPException(status_code=503, detail="Chat memory service is not initialized yet")
+        if collection is None:
+            raise HTTPException(status_code=503, detail="Search collection is not initialized yet")
+
+        # Add user message to thread history
+        chat_memory.add_message(thread_id, "user", query.text)
+
+        # Search the collection for relevant documents
+        print(f"[thread:{thread_id}] incoming text length={len(query.text)}")
+        try:
+            results = collection.query(
+                query_texts=[query.text],
+                n_results=5
+            )
+        except Exception as chroma_err:
+            print(f"[thread:{thread_id}] Chroma query failed: {chroma_err}")
+            raise HTTPException(status_code=500, detail=f"Vector search failed: {chroma_err}")
+
+        if results and results.get('documents') and results['documents'][0]:
+            docs = results['documents'][0]
+            # Normalize whitespace in returned docs
+            cleaned = []
+            for d in docs:
+                if not d:
+                    continue
+                txt = re.sub(r"_+", " ", d)
+                txt = re.sub(r"\s{2,}", " ", txt).strip()
+                cleaned.append(txt)
+
+            if not cleaned:
+                response_text = "I couldn't find any relevant information in the uploaded documents."
+                chat_memory.add_message(thread_id, "assistant", response_text)
+                return {"message": response_text}
+
+            # Get recent conversation context
+            context = chat_memory.get_recent_context(thread_id, max_messages=8)
+
+            # Use the model to generate a response with conversation context
+            from BackEnd.model_service import get_ai_response
+            print(f"[thread:{thread_id}] sending {len(cleaned)} docs + conversation history")
+            try:
+                response = get_ai_response(query.text, cleaned, conversation_history=context)
+                print(f"[thread:{thread_id}] model response length={len(response)}")
+            except Exception as model_err:
+                print(f"[thread:{thread_id}] model error: {model_err}")
+                raise HTTPException(status_code=500, detail=f"Model error: {model_err}")
+
+            # Add assistant response to thread history
+            chat_memory.add_message(thread_id, "assistant", response)
+
+            return {"message": response}
+        else:
+            response_text = "I couldn't find any relevant information in the uploaded documents."
+            chat_memory.add_message(thread_id, "assistant", response_text)
+            return {"message": response_text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/thread/{thread_id}/history")
+async def get_thread_history(thread_id: str, limit: int = None):
+    """Get the message history for a specific thread."""
+    try:
+        if chat_memory is None:
+            raise HTTPException(status_code=503, detail="Chat memory service is not initialized yet")
+
+        history = chat_memory.get_thread_history(thread_id, limit=limit)
+        return {"thread_id": thread_id, "messages": history}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/threads")
+async def list_threads():
+    """List all available chat threads."""
+    try:
+        if chat_memory is None:
+            raise HTTPException(status_code=503, detail="Chat memory service is not initialized yet")
+
+        threads = chat_memory.list_threads()
+        return {"threads": threads}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/chat/thread/{thread_id}")
+async def delete_thread(thread_id: str):
+    """Delete a chat thread and all its messages."""
+    try:
+        if chat_memory is None:
+            raise HTTPException(status_code=503, detail="Chat memory service is not initialized yet")
+
+        success = chat_memory.delete_thread(thread_id)
+        if success:
+            return {"message": f"Thread {thread_id} deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail=f"Thread {thread_id} not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# === Original Endpoints (Legacy - kept for backward compatibility) ===
 
 @app.post("/api/query/")
 async def query_documents(query: ChatQuery):

@@ -11,7 +11,8 @@ const Chat = ({ onSwitchToQuiz }) => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [pastChats] = useState(['Chat 1', 'Chat 2', 'Chat 3', 'Chat 4', 'Chat 5','Chat 6','Chat 7','Chat 8','Chat 8','Chat 10','Chat 11','Chat 12','Chat 13','Chat 14']); // Sample past chats
+    const [pastChats, setPastChats] = useState([]);
+    const [currentThreadId, setCurrentThreadId] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [documentCount, setDocumentCount] = useState(0);
@@ -24,10 +25,101 @@ const Chat = ({ onSwitchToQuiz }) => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Fetch document count on component mount
+    // Initialize: create new thread, fetch document count, and load past threads
     useEffect(() => {
-        fetchDocumentCount();
+        const initialize = async () => {
+            await createNewThread();
+            await fetchDocumentCount();
+            await fetchPastThreads();
+        };
+        initialize();
     }, []);
+
+    // Create a new thread on component mount or when user clicks "New Chat"
+    const createNewThread = async () => {
+        try {
+            const response = await axios.post('http://127.0.0.1:8000/api/chat/thread/new');
+            setCurrentThreadId(response.data.thread_id);
+            console.log('Created new thread:', response.data.thread_id);
+        } catch (err) {
+            console.error('Error creating thread:', err);
+            setError('Failed to create chat thread');
+        }
+    };
+
+    // Fetch list of past threads
+    const fetchPastThreads = async () => {
+        try {
+            const response = await axios.get('http://127.0.0.1:8000/api/chat/threads');
+            setPastChats(response.data.threads);
+        } catch (err) {
+            console.error('Error fetching past threads:', err);
+        }
+    };
+
+    // Load a specific thread's history
+    const loadThread = async (threadId) => {
+        try {
+            const response = await axios.get(`http://127.0.0.1:8000/api/chat/thread/${threadId}/history`);
+            const history = response.data.messages;
+
+            // Convert thread history to message format
+            const loadedMessages = [
+                { sender: 'bot', text: 'Hello! How can I assist you today? You can upload study materials and I\'ll help you understand them.' }
+            ];
+
+            history.forEach(msg => {
+                loadedMessages.push({
+                    sender: msg.role === 'user' ? 'user' : 'bot',
+                    text: msg.content
+                });
+            });
+
+            setMessages(loadedMessages);
+            setCurrentThreadId(threadId);
+        } catch (err) {
+            console.error('Error loading thread:', err);
+            setError('Failed to load chat history');
+        }
+    };
+
+    // Handle creating a new chat
+    const handleNewChat = async () => {
+        setMessages([
+            { sender: 'bot', text: 'Hello! How can I assist you today? You can upload study materials and I\'ll help you understand them.' }
+        ]);
+        await createNewThread();
+        await fetchPastThreads();
+    };
+
+    // Handle deleting a thread
+    const handleDeleteThread = async (threadId, event) => {
+        // Prevent triggering the loadThread function when clicking delete
+        event.stopPropagation();
+
+        // Confirm deletion
+        if (!window.confirm('Are you sure you want to delete this chat thread?')) {
+            return;
+        }
+
+        try {
+            await axios.delete(`http://127.0.0.1:8000/api/chat/thread/${threadId}`);
+
+            // If we deleted the current thread, create a new one
+            if (currentThreadId === threadId) {
+                setMessages([
+                    { sender: 'bot', text: 'Hello! How can I assist you today? You can upload study materials and I\'ll help you understand them.' }
+                ]);
+                await createNewThread();
+            }
+
+            // Refresh the list of threads
+            await fetchPastThreads();
+        } catch (err) {
+            console.error('Error deleting thread:', err);
+            setError('Failed to delete chat thread');
+        }
+    };
 
     const fetchDocumentCount = async () => {
         try {
@@ -116,6 +208,11 @@ const Chat = ({ onSwitchToQuiz }) => {
     const handleSend = async (messageText) => {
         if (!messageText.trim()) return;
 
+        // If no thread exists, create one first
+        if (!currentThreadId) {
+            await createNewThread();
+        }
+
         // Add user message immediately
         const userMessage = { sender: 'user', text: messageText };
         setMessages((prevMessages) => [...prevMessages, userMessage]);
@@ -123,9 +220,9 @@ const Chat = ({ onSwitchToQuiz }) => {
         setError(null);
 
         try {
-            // Send message to our FastAPI backend
+            // Send message to thread-based endpoint
             const response = await axios.post(
-                'http://127.0.0.1:8000/api/query/',
+                `http://127.0.0.1:8000/api/chat/thread/${currentThreadId}/message`,
                 { text: messageText },
                 {
                     headers: {
@@ -139,7 +236,10 @@ const Chat = ({ onSwitchToQuiz }) => {
                 ...prevMessages,
                 { sender: 'bot', text: response.data.message }
             ]);
-            
+
+            // Refresh past threads list to show updated preview
+            fetchPastThreads();
+
             // Only clear input after successful response
             setInput('');
         } catch (err) {
@@ -169,11 +269,32 @@ const Chat = ({ onSwitchToQuiz }) => {
         <div className="chat-container">
             {/* Sidebar */}
             <div className="sidebar">
+                {/* New Chat Button */}
+                <button className="new-chat-button" onClick={handleNewChat}>
+                    + New Chat
+                </button>
+
                 {/* Scrollable List of Past Chats */}
                 <div className="past-chats">
-                    {pastChats.map((chat, index) => (
-                        <div key={index} className="past-chat-item">
-                            {chat}
+                    {pastChats.map((thread, index) => (
+                        <div
+                            key={thread.thread_id || index}
+                            className={`past-chat-item ${currentThreadId === thread.thread_id ? 'active' : ''}`}
+                            onClick={() => loadThread(thread.thread_id)}
+                        >
+                            <div className="chat-item-content">
+                                <div className="chat-preview">{thread.preview}</div>
+                                <div className="chat-meta">
+                                    {thread.message_count} messages
+                                </div>
+                            </div>
+                            <button
+                                className="delete-thread-button"
+                                onClick={(e) => handleDeleteThread(thread.thread_id, e)}
+                                title="Delete this chat"
+                            >
+                                ✕
+                            </button>
                         </div>
                     ))}
                 </div>
