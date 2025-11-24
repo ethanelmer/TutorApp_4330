@@ -4,10 +4,8 @@ from openai import RateLimitError
 import sys
 from pathlib import Path
 
-# Mock the environment variable before importing modelCall
 sys.path.insert(0, str(Path(__file__).parent))
 
-# Mock the token so we don't need the .env file for tests
 with patch.dict('os.environ', {'HF_TOKEN': 'fake-token-for-testing'}):
     from modelCall import get_model_response
 
@@ -77,7 +75,7 @@ class TestGetModelResponse:
 
     @patch('modelCall.client')
     def test_other_exceptions(self, mock_client):
-        # Make sure other errors don't retry
+        # Make sure others errors don't retry
         mock_client.chat.completions.create.side_effect = ValueError("Invalid input")
 
         with pytest.raises(ValueError):
