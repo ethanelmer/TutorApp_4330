@@ -6,12 +6,14 @@
   height: var(--header-height);
   display: flex;
   align-items: center;
-  justify-content: center; /* center text horizontally */
+  justify-content: center;
+  /* center text horizontally */
   padding: 0 28px;
   background-color: #1a1a2e;
   color: #e0e0e0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  position: sticky; /* also acts as positioning context for absolute children */
+  position: sticky;
+  /* also acts as positioning context for absolute children */
   top: 0;
   z-index: 100;
   border-bottom: 1px solid #2d2d44;
@@ -42,6 +44,7 @@
   font-size: 20px;
   line-height: 1;
 }
+
 .header-menu-btn:hover {
   border-color: #2d2d44;
   background: rgba(111, 107, 255, 0.12);
@@ -82,6 +85,7 @@
     opacity: 0;
     transform: translateY(-6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
