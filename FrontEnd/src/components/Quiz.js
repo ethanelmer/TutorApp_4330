@@ -29,7 +29,12 @@ const Quiz = ({ onBackToChat }) => {
                 if (statusResp.data.ready) {
                     clearInterval(pollRef.current);
                     pollRef.current = null;
-                    fetchPreloadedQuiz();
+                    // Fetch the newly generated quiz
+                    const resp = await axios.get('http://127.0.0.1:8000/api/quiz/preloaded/');
+                    if (resp.data.quiz) {
+                        handleQuizPayload(resp.data.quiz);
+                        setIsLoading(false);
+                    }
                 }
             } catch (e) {
                 // swallow errors; keep polling
@@ -161,10 +166,7 @@ const Quiz = ({ onBackToChat }) => {
                 </button>
                 <h1>Quiz Mode</h1>
                 <button className="regenerate-button" onClick={regenerateBackground}>
-                    🔄 Regenerate (Background)
-                </button>
-                <button className="regenerate-button" onClick={generateQuiz}>
-                    ⚡ Generate Now
+                    🔄 Regenerate Quiz
                 </button>
             </div>
 
