@@ -276,7 +276,9 @@ const Chat = ({ onSwitchToQuiz }) => {
 
                 {/* Scrollable List of Past Chats */}
                 <div className="past-chats">
-                    {pastChats.map((thread, index) => (
+                    {pastChats
+                        .filter(thread => thread.message_count > 1) // Only show threads with actual discussions
+                        .map((thread, index) => (
                         <div
                             key={thread.thread_id || index}
                             className={`past-chat-item ${currentThreadId === thread.thread_id ? 'active' : ''}`}

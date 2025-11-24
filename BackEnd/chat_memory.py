@@ -6,7 +6,7 @@ Manages chat threads and message history using ChromaDB cloud storage.
 import uuid
 from datetime import datetime
 from typing import List, Dict, Optional
-from chromaConnection import get_chroma_client
+from .chromaConnection import get_chroma_client
 
 
 class ChatMemoryManager:
