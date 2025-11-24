@@ -177,10 +177,10 @@ const Chat = ({ onSwitchToQuiz }) => {
                 sender: 'bot',
                 text: `✅ Successfully uploaded and processed ${selectedFile.name}. ${response.data.chunks} chunks were created.`
             }]);
-            
+
             // Refresh document count
             fetchDocumentCount();
-            
+
             // Reset file selection
             setSelectedFile(null);
             setUploadProgress(0);
@@ -196,7 +196,7 @@ const Chat = ({ onSwitchToQuiz }) => {
                     errorMessage = err.message;
                 }
             }
-            
+
             console.error('Upload error details:', err);
             setError(`Upload failed: ${errorMessage}`);
             setUploadProgress(0);
@@ -374,7 +374,7 @@ const Chat = ({ onSwitchToQuiz }) => {
                             accept=".txt,.md,.pdf"
                             style={{ display: 'none' }}
                         />
-                        <button 
+                        <button
                             className="file-upload-button"
                             onClick={() => fileInputRef.current?.click()}
                             type="button"
