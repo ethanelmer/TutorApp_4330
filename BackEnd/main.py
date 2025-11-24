@@ -1,5 +1,7 @@
 import os
 import sys
+import asyncio
+import time
 from pathlib import Path
 
 # Add project root to Python path
@@ -56,23 +58,116 @@ app.add_middleware(
 collection = None
 chat_memory = None
 
+# Quiz pre-generation cache/state
+pre_generated_quiz = None  # {"quiz": str, "used_docs": int}
+pre_generated_quiz_error = None  # str
+pre_generated_quiz_task = None  # asyncio.Task
+pre_generated_quiz_timestamp = None  # float epoch seconds
+QUIZ_CACHE_MAX_AGE = int(os.getenv("QUIZ_CACHE_MAX_AGE", "900"))  # seconds
+_quiz_generation_lock = asyncio.Lock()
+
 
 @app.on_event("startup")
-def startup_event():
-    """Initialize the Chroma client and collection on startup.
+async def startup_event():
+    """Initialize services and kick off background quiz generation.
 
-    Delaying creation to startup gives clearer errors and avoids network calls at import time.
+    Using async startup lets us schedule a background task without blocking import.
     """
-    global collection, chat_memory
+    global collection, chat_memory, pre_generated_quiz_task
     client = get_chroma_client()
     collection = client.get_or_create_collection(
         name="study_materials",
-        metadata={"hnsw:space": "cosine"}  # Using cosine similarity for searches
+        metadata={"hnsw:space": "cosine"}
     )
 
-    # Initialize chat memory manager
     from BackEnd.chat_memory import ChatMemoryManager
     chat_memory = ChatMemoryManager()
+
+    # Fire off initial background quiz pre-generation
+    pre_generated_quiz_task = asyncio.create_task(_background_generate_quiz(initial=True))
+
+def _build_quiz_sync():
+    """Synchronous helper that constructs quiz payload (used by background + endpoint).
+
+    Returns dict {"quiz": str, "used_docs": int}
+    Raises HTTPException for expected client errors.
+    """
+    from fastapi import HTTPException
+    from BackEnd.model_service import get_ai_response
+    global collection
+    if collection is None:
+        raise HTTPException(status_code=503, detail="Search collection is not initialized yet")
+
+    count = collection.count()
+    if count == 0:
+        raise HTTPException(status_code=400, detail="No documents available. Please upload study materials first.")
+
+    max_docs = int(os.getenv("QUIZ_MAX_DOCS", "60"))
+    per_doc_char_limit = int(os.getenv("QUIZ_PER_DOC_CHAR_LIMIT", "600"))
+    total_char_budget = int(os.getenv("QUIZ_TOTAL_CHAR_BUDGET", "16000"))
+
+    print(f"[quiz-preload] total collection count={count}; retrieving up to {min(count, max_docs)} docs")
+    results = collection.get(limit=min(count, max_docs), include=["documents"])
+    docs_raw = results.get("documents") if results else None
+    if not docs_raw:
+        raise HTTPException(status_code=400, detail="Could not retrieve documents from database")
+
+    flat_docs = []
+    for d in docs_raw:
+        if isinstance(d, list):
+            flat_docs.extend([str(x) for x in d if x])
+        elif d:
+            flat_docs.append(str(d))
+    if not flat_docs:
+        raise HTTPException(status_code=400, detail="No document text retrieved from database")
+
+    trimmed = []
+    budget_left = total_char_budget
+    for doc in flat_docs:
+        if budget_left <= 0:
+            break
+        snippet = doc[:per_doc_char_limit]
+        if len(snippet) > budget_left:
+            snippet = snippet[:max(0, budget_left)]
+        if snippet:
+            trimmed.append(snippet)
+            budget_left -= len(snippet)
+    if not trimmed:
+        raise HTTPException(status_code=400, detail="Content budget exhausted while preparing quiz context")
+
+    quiz_prompt = (
+        "Create a 20-question study quiz from the provided course materials. "
+        "Diversify types (concept recall, short answer, application). "
+        "Return STRICT JSON with: {\"questions\":[{\"question\":string,\"answer\":string}...]}. "
+        "Keep questions self-contained and answers concise with a 1–2 sentence explanation."
+    )
+
+    print(f"[quiz-preload] sending {len(trimmed)} docs; total_chars={sum(len(t) for t in trimmed)} budget_left={budget_left}")
+    response = get_ai_response(quiz_prompt, trimmed)
+    print(f"[quiz-preload] model response length={len(response)}")
+    return {"quiz": response, "used_docs": len(trimmed)}
+
+async def _background_generate_quiz(initial=False):
+    """Background task to populate the pre-generated quiz cache.
+
+    Errors are stored in global state; call /api/quiz/status to inspect.
+    """
+    global pre_generated_quiz, pre_generated_quiz_error, pre_generated_quiz_timestamp
+    async with _quiz_generation_lock:
+        phase = "initial" if initial else "regenerate"
+        print(f"[quiz-bg] starting {phase} background quiz generation")
+        pre_generated_quiz_error = None
+        try:
+            # Run sync logic off the event loop to avoid blocking
+            payload = await asyncio.to_thread(_build_quiz_sync)
+            pre_generated_quiz = payload
+            pre_generated_quiz_timestamp = time.time()
+            print(f"[quiz-bg] {phase} background quiz generation complete")
+        except Exception as e:  # HTTPException or other
+            pre_generated_quiz_error = str(e)
+            pre_generated_quiz = None
+            pre_generated_quiz_timestamp = None
+            print(f"[quiz-bg] {phase} background quiz generation failed: {e}")
 
 class ChatQuery(BaseModel):
     text: str
@@ -405,6 +500,40 @@ async def list_documents():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/quiz/status/")
+async def quiz_status():
+    """Return status of background quiz generation."""
+    global pre_generated_quiz, pre_generated_quiz_error, pre_generated_quiz_timestamp, pre_generated_quiz_task
+    in_progress = pre_generated_quiz_task is not None and not pre_generated_quiz_task.done()
+    age = None
+    if pre_generated_quiz_timestamp:
+        age = int(time.time() - pre_generated_quiz_timestamp)
+    return {
+        "ready": pre_generated_quiz is not None,
+        "in_progress": in_progress,
+        "error": pre_generated_quiz_error,
+        "age_seconds": age,
+        "cache_max_age": QUIZ_CACHE_MAX_AGE
+    }
+
+@app.get("/api/quiz/preloaded/")
+async def get_preloaded_quiz():
+    """Return pre-generated quiz if available and fresh."""
+    global pre_generated_quiz, pre_generated_quiz_timestamp
+    if pre_generated_quiz and pre_generated_quiz_timestamp:
+        if (time.time() - pre_generated_quiz_timestamp) <= QUIZ_CACHE_MAX_AGE:
+            return {"source": "cache", **pre_generated_quiz}
+    return {"detail": "Quiz not ready"}
+
+@app.post("/api/quiz/regenerate/")
+async def regenerate_quiz():
+    """Trigger async regeneration of quiz cache."""
+    global pre_generated_quiz_task
+    if pre_generated_quiz_task and not pre_generated_quiz_task.done():
+        return {"message": "Quiz generation already in progress"}
+    pre_generated_quiz_task = asyncio.create_task(_background_generate_quiz(initial=False))
+    return {"message": "Quiz regeneration started"}
+
 @app.post("/api/quiz/generate/")
 async def generate_quiz():
     """Generate a 20-question quiz from all documents in the database.
@@ -414,6 +543,10 @@ async def generate_quiz():
     limit. Both can be tuned via environment variables.
     """
     try:
+        # Serve from cache if fresh
+        global pre_generated_quiz, pre_generated_quiz_timestamp
+        if pre_generated_quiz and pre_generated_quiz_timestamp and (time.time() - pre_generated_quiz_timestamp) <= QUIZ_CACHE_MAX_AGE:
+            return {"source": "cache", **pre_generated_quiz}
         if collection is None:
             raise HTTPException(status_code=503, detail="Search collection is not initialized yet")
 

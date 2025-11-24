@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import './Quiz.css';
@@ -10,37 +10,78 @@ const Quiz = ({ onBackToChat }) => {
     const [showAnswers, setShowAnswers] = useState({});
     const [parsedQuestions, setParsedQuestions] = useState([]);
 
+    const pollRef = useRef(null);
+
     useEffect(() => {
-        generateQuiz();
+        fetchPreloadedQuiz();
+        return () => {
+            if (pollRef.current) {
+                clearInterval(pollRef.current);
+            }
+        };
     }, []);
+
+    const startPollingStatus = () => {
+        if (pollRef.current) return; // already polling
+        pollRef.current = setInterval(async () => {
+            try {
+                const statusResp = await axios.get('http://127.0.0.1:8000/api/quiz/status/');
+                if (statusResp.data.ready) {
+                    clearInterval(pollRef.current);
+                    pollRef.current = null;
+                    fetchPreloadedQuiz();
+                }
+            } catch (e) {
+                // swallow errors; keep polling
+            }
+        }, 3000);
+    };
+
+    const fetchPreloadedQuiz = async () => {
+        try {
+            const resp = await axios.get('http://127.0.0.1:8000/api/quiz/preloaded/');
+            if (resp.data.quiz) {
+                handleQuizPayload(resp.data.quiz);
+                setIsLoading(false);
+            } else {
+                // not ready yet; show loading and begin polling
+                setIsLoading(true);
+                startPollingStatus();
+            }
+        } catch (e) {
+            // fallback to on-demand generation if preload fails
+            setIsLoading(true);
+            generateQuiz();
+        }
+    };
+
+    const handleQuizPayload = (quizData) => {
+        setQuiz(quizData);
+        try {
+            const jsonMatch = quizData.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (parsed.questions && Array.isArray(parsed.questions)) {
+                    setParsedQuestions(parsed.questions);
+                } else {
+                    setParsedQuestions([]);
+                }
+            } else {
+                setParsedQuestions([]);
+            }
+        } catch (parseError) {
+            console.log('Could not parse as JSON, will display as markdown');
+            setParsedQuestions([]);
+        }
+    };
 
     const generateQuiz = async () => {
         setIsLoading(true);
         setError(null);
-
         try {
             const response = await axios.post('http://127.0.0.1:8000/api/quiz/generate/');
             const quizData = response.data.quiz;
-            setQuiz(quizData);
-
-            // Try to parse JSON if the model returns it properly
-            try {
-                const jsonMatch = quizData.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    const parsed = JSON.parse(jsonMatch[0]);
-                    if (parsed.questions && Array.isArray(parsed.questions)) {
-                        setParsedQuestions(parsed.questions);
-                    } else {
-                        // If not in expected format, use raw text
-                        setParsedQuestions([]);
-                    }
-                } else {
-                    setParsedQuestions([]);
-                }
-            } catch (parseError) {
-                console.log('Could not parse as JSON, will display as markdown');
-                setParsedQuestions([]);
-            }
+            handleQuizPayload(quizData);
         } catch (err) {
             console.error('Error generating quiz:', err);
             let errorMessage = 'Failed to generate quiz. Please try again.';
@@ -52,6 +93,19 @@ const Quiz = ({ onBackToChat }) => {
             setError(errorMessage);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const regenerateBackground = async () => {
+        try {
+            await axios.post('http://127.0.0.1:8000/api/quiz/regenerate/');
+            setIsLoading(true);
+            // Clear existing quiz while regenerating
+            setQuiz(null);
+            setParsedQuestions([]);
+            startPollingStatus();
+        } catch (e) {
+            setError('Failed to start regeneration');
         }
     };
 
@@ -106,8 +160,11 @@ const Quiz = ({ onBackToChat }) => {
                     ← Back to Chat
                 </button>
                 <h1>Quiz Mode</h1>
+                <button className="regenerate-button" onClick={regenerateBackground}>
+                    🔄 Regenerate (Background)
+                </button>
                 <button className="regenerate-button" onClick={generateQuiz}>
-                    🔄 Regenerate Quiz
+                    ⚡ Generate Now
                 </button>
             </div>
 
