@@ -23,6 +23,16 @@ cd frontend
 npm install
 ```
 
+### 4. (Optional) Run Frontend Unit Tests
+```bash
+cd frontend
+npm test
+```
+Tests focus on:
+- Chat basics – greeting, chat thread creation, successful/error replies.
+- Header menu – toggle + option callbacks.
+- Quiz mode – question rendering, answer reveal, retry flow.
+
 ---
 
 ## ▶️ Run Application

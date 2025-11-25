@@ -85,6 +85,18 @@ npm start
 
 Frontend will run on `http://localhost:3000`
 
+### 4. Frontend Unit Tests
+
+```bash
+cd frontend
+npm test
+```
+
+The Jest suite covers:
+- **Chat** – greeting render, thread creation, happy/error message flow.
+- **Header** – menu toggle wiring and option callbacks.
+- **Quiz** – parsed questions, answer toggles, and retry path.
+
 ---
 
 ## Project Structure
