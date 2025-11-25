@@ -3,7 +3,7 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import './Quiz.css';
 
-const Quiz = ({ onBackToChat }) => {
+const Quiz = ({ externalRegenerateTrigger }) => {
     const [quiz, setQuiz] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -121,15 +121,17 @@ const Quiz = ({ onBackToChat }) => {
         }));
     };
 
+    // Trigger regeneration when external counter changes
+    useEffect(() => {
+        if (externalRegenerateTrigger > 0) {
+            regenerateBackground();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [externalRegenerateTrigger]);
+
     if (isLoading) {
         return (
             <div className="quiz-container">
-                <div className="quiz-header">
-                    <button className="back-button" onClick={onBackToChat}>
-                        ← Back to Chat
-                    </button>
-                    <h1>Quiz Mode</h1>
-                </div>
                 <div className="quiz-loading">
                     <div className="loading-spinner"></div>
                     <p>Generating your personalized quiz from the study materials...</p>
@@ -142,12 +144,6 @@ const Quiz = ({ onBackToChat }) => {
     if (error) {
         return (
             <div className="quiz-container">
-                <div className="quiz-header">
-                    <button className="back-button" onClick={onBackToChat}>
-                        ← Back to Chat
-                    </button>
-                    <h1>Quiz Mode</h1>
-                </div>
                 <div className="quiz-error">
                     <p>❌ {error}</p>
                     <button className="retry-button" onClick={generateQuiz}>
@@ -160,19 +156,8 @@ const Quiz = ({ onBackToChat }) => {
 
     return (
         <div className="quiz-container">
-            <div className="quiz-header">
-                <button className="back-button" onClick={onBackToChat}>
-                    ← Back to Chat
-                </button>
-                <h1>Quiz Mode</h1>
-                <button className="regenerate-button" onClick={regenerateBackground}>
-                    🔄 Regenerate Quiz
-                </button>
-            </div>
-
             <div className="quiz-content">
                 {parsedQuestions.length > 0 ? (
-                    // Display structured questions if parsing was successful
                     <div className="quiz-questions">
                         {parsedQuestions.map((item, index) => (
                             <div key={index} className="question-card">
@@ -182,7 +167,7 @@ const Quiz = ({ onBackToChat }) => {
                                 <div className="question-text">
                                     <ReactMarkdown>{item.question}</ReactMarkdown>
                                 </div>
-                                <button 
+                                <button
                                     className="show-answer-button"
                                     onClick={() => toggleAnswer(index)}
                                 >
@@ -200,7 +185,6 @@ const Quiz = ({ onBackToChat }) => {
                         ))}
                     </div>
                 ) : (
-                    // Display as markdown if parsing failed
                     <div className="quiz-markdown">
                         <ReactMarkdown>{quiz}</ReactMarkdown>
                     </div>

@@ -50,6 +50,38 @@
   background: rgba(111, 107, 255, 0.12);
 }
 
+.header-regenerate-btn {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 8px;
+  background: #6c63ff;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  border: 1px solid #6c63ff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  transition: background .2s ease, box-shadow .2s ease, transform .15s ease;
+}
+
+.header-regenerate-btn:hover {
+  background: #7d74ff;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.45);
+}
+
+.header-regenerate-btn:active {
+  transform: translateY(-50%) scale(0.97);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+
 .header-dropdown-menu {
   position: absolute;
   top: calc(var(--header-height) + 4px);
