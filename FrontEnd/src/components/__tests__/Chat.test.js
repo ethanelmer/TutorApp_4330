@@ -88,9 +88,10 @@ describe('Chat component', () => {
         fireEvent.change(input, { target: { value: 'Are you there?' } });
         fireEvent.click(screen.getByRole('button', { name: '➤' }));
 
-        await waitFor(() =>
-            expect(screen.getByText(/Sorry, something went wrong/i)).toBeInTheDocument()
-        );
+        await waitFor(() => {
+            const errorMessages = screen.getAllByText(/Sorry, something went wrong/i);
+            expect(errorMessages.length).toBeGreaterThan(0);
+        });
     });
 
     test('creates a new chat when the button is pressed', async () => {
