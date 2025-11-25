@@ -8,6 +8,7 @@ function App() {
   const [mode, setMode] = useState('chat'); // 'chat' or 'quiz'
   const [showMenu, setShowMenu] = useState(false);
   const [regenerateCounter, setRegenerateCounter] = useState(0);
+  const [regenInProgress, setRegenInProgress] = useState(false);
 
   const handleMenuOptionClick = (option) => {
     setShowMenu(false);
@@ -19,8 +20,13 @@ function App() {
   };
 
   const handleRegenerateQuiz = () => {
-    // Increment counter to signal regeneration to Quiz component
-    setRegenerateCounter(c => c + 1);
+    if (regenInProgress) return; // prevent double trigger
+    setRegenInProgress(true);
+    setRegenerateCounter(c => c + 1); // signal Quiz component
+  };
+
+  const handleRegenerationComplete = () => {
+    setRegenInProgress(false);
   };
 
   return (
@@ -31,11 +37,15 @@ function App() {
         onMenuOptionClick={handleMenuOptionClick}
         mode={mode}
         onRegenerateQuiz={handleRegenerateQuiz}
+        regenInProgress={regenInProgress}
       />
       {mode === 'chat' ? (
         <Chat onSwitchToQuiz={() => setMode('quiz')} />
       ) : (
-        <Quiz externalRegenerateTrigger={regenerateCounter} />
+        <Quiz
+          externalRegenerateTrigger={regenerateCounter}
+          onRegenerationComplete={handleRegenerationComplete}
+        />
       )}
     </div>
   );

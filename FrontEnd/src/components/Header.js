@@ -1,7 +1,7 @@
 import React from 'react';
 import './Header.css';
 
-function Header({ onMenuClick, showMenu, onMenuOptionClick, mode, onRegenerateQuiz }) {
+function Header({ onMenuClick, showMenu, onMenuOptionClick, mode, onRegenerateQuiz, regenInProgress }) {
   return (
     <header className="app-header-bar">
       <div className="header-left-group">
@@ -18,11 +18,16 @@ function Header({ onMenuClick, showMenu, onMenuOptionClick, mode, onRegenerateQu
       {mode === 'quiz' && (
         <button
           type="button"
-          className="header-regenerate-btn"
+          className={`header-regenerate-btn ${regenInProgress ? 'is-disabled' : ''}`}
           onClick={onRegenerateQuiz}
           aria-label="Regenerate Quiz"
+          disabled={regenInProgress}
         >
-          🔄 Regenerate Quiz
+          {regenInProgress ? (
+            <span className="regen-inner"><span className="regen-spinner" /> Regenerating…</span>
+          ) : (
+            <span className="regen-inner">🔄 Regenerate Quiz</span>
+          )}
         </button>
       )}
       {showMenu && (

@@ -3,7 +3,7 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import './Quiz.css';
 
-const Quiz = ({ externalRegenerateTrigger }) => {
+const Quiz = ({ externalRegenerateTrigger, onRegenerationComplete }) => {
     const [quiz, setQuiz] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -21,23 +21,37 @@ const Quiz = ({ externalRegenerateTrigger }) => {
         };
     }, []);
 
-    const startPollingStatus = () => {
+    const startPollingStatus = (expectFresh = false, onDone) => {
         if (pollRef.current) return; // already polling
         pollRef.current = setInterval(async () => {
             try {
                 const statusResp = await axios.get('http://127.0.0.1:8000/api/quiz/status/');
-                if (statusResp.data.ready) {
+                const { ready, in_progress } = statusResp.data;
+                // Initial load: fetch as soon as ready
+                if (!expectFresh && ready) {
                     clearInterval(pollRef.current);
                     pollRef.current = null;
-                    // Fetch the newly generated quiz
                     const resp = await axios.get('http://127.0.0.1:8000/api/quiz/preloaded/');
                     if (resp.data.quiz) {
                         handleQuizPayload(resp.data.quiz);
                         setIsLoading(false);
                     }
+                    if (onDone) onDone();
+                    return;
+                }
+                // Regeneration: wait until finished (ready && !in_progress)
+                if (expectFresh && ready && !in_progress) {
+                    clearInterval(pollRef.current);
+                    pollRef.current = null;
+                    const resp = await axios.get('http://127.0.0.1:8000/api/quiz/preloaded/');
+                    if (resp.data.quiz) {
+                        handleQuizPayload(resp.data.quiz);
+                    }
+                    if (onDone) onDone();
+                    return;
                 }
             } catch (e) {
-                // swallow errors; keep polling
+                // swallow errors
             }
         }, 3000);
     };
@@ -49,14 +63,13 @@ const Quiz = ({ externalRegenerateTrigger }) => {
                 handleQuizPayload(resp.data.quiz);
                 setIsLoading(false);
             } else {
-                // not ready yet; show loading and begin polling
-                setIsLoading(true);
+                // Not ready yet; begin polling but keep a lightweight waiting state.
+                setIsLoading(false); // do not block UI entirely
                 startPollingStatus();
             }
         } catch (e) {
-            // fallback to on-demand generation if preload fails
-            setIsLoading(true);
-            generateQuiz();
+            // If preload endpoint errors, just start polling instead of forcing generation.
+            startPollingStatus();
         }
     };
 
@@ -104,13 +117,13 @@ const Quiz = ({ externalRegenerateTrigger }) => {
     const regenerateBackground = async () => {
         try {
             await axios.post('http://127.0.0.1:8000/api/quiz/regenerate/');
-            setIsLoading(true);
-            // Clear existing quiz while regenerating
-            setQuiz(null);
-            setParsedQuestions([]);
-            startPollingStatus();
+            // Keep current quiz visible; start fresh polling
+            startPollingStatus(true, () => {
+                if (onRegenerationComplete) onRegenerationComplete();
+            });
         } catch (e) {
             setError('Failed to start regeneration');
+            if (onRegenerationComplete) onRegenerationComplete();
         }
     };
 
@@ -134,8 +147,7 @@ const Quiz = ({ externalRegenerateTrigger }) => {
             <div className="quiz-container">
                 <div className="quiz-loading">
                     <div className="loading-spinner"></div>
-                    <p>Generating your personalized quiz from the study materials...</p>
-                    <p className="loading-subtext">This may take a moment</p>
+                    <p>Preparing quiz context...</p>
                 </div>
             </div>
         );
@@ -185,8 +197,11 @@ const Quiz = ({ externalRegenerateTrigger }) => {
                         ))}
                     </div>
                 ) : (
-                    <div className="quiz-markdown">
-                        <ReactMarkdown>{quiz}</ReactMarkdown>
+                    <div className="quiz-empty-state">
+                        <p>No quiz loaded yet. Waiting for background generation.</p>
+                        <button className="manual-generate-button" onClick={generateQuiz}>
+                            Generate Quiz Now
+                        </button>
                     </div>
                 )}
             </div>
