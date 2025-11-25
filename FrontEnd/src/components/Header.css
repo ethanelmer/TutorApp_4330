@@ -6,15 +6,17 @@
   height: var(--header-height);
   display: flex;
   align-items: center;
-  justify-content: center; /* center text horizontally */
+  justify-content: center;
+  /* center text horizontally */
   padding: 0 28px;
-  background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-700) 100%);
-  color: var(--text-on-navy);
-  box-shadow: 0 4px 12px var(--shadow-strong);
-  position: sticky; /* also acts as positioning context for absolute children */
+  background-color: #1a1a2e;
+  color: #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  position: sticky;
+  /* also acts as positioning context for absolute children */
   top: 0;
   z-index: 100;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid #2d2d44;
 }
 
 .app-header-title {
@@ -36,29 +38,30 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  color: var(--text-on-navy);
+  color: #e0e0e0;
   border: 1px solid transparent;
   cursor: pointer;
   font-size: 20px;
   line-height: 1;
 }
+
 .header-menu-btn:hover {
-  border-color: var(--border-light);
-  background: rgba(255,255,255,0.06);
+  border-color: #2d2d44;
+  background: rgba(111, 107, 255, 0.12);
 }
 
 .header-dropdown-menu {
   position: absolute;
   top: calc(var(--header-height) + 4px);
   left: 16px;
-  background: rgba(13,39,73,0.95);
-  backdrop-filter: blur(12px);
+  background: #252541;
+  backdrop-filter: blur(8px);
   padding: 12px 14px;
   border-radius: 12px;
-  box-shadow: 0 8px 22px var(--shadow-strong);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
   animation: fadeInDown .25s ease;
   z-index: 200;
-  border: 1px solid var(--border-light);
+  border: 1px solid #3a3a5c;
   min-width: 180px;
 }
 
@@ -68,12 +71,12 @@
   border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
-  color: var(--text-on-navy);
-  transition: background .25s, transform .2s;
+  color: #e0e0e0;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .header-dropdown-menu p:hover {
-  background: rgba(255,255,255,0.15);
+  background: #6c63ff;
   transform: translateX(4px);
 }
 
@@ -82,6 +85,7 @@
     opacity: 0;
     transform: translateY(-6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
