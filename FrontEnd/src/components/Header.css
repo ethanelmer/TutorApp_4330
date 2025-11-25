@@ -6,17 +6,15 @@
   height: var(--header-height);
   display: flex;
   align-items: center;
-  justify-content: center;
-  /* center text horizontally */
+  justify-content: center; /* center text horizontally */
   padding: 0 28px;
-  background-color: #1a1a2e;
-  color: #e0e0e0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  position: sticky;
-  /* also acts as positioning context for absolute children */
+  background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-700) 100%);
+  color: var(--text-on-navy);
+  box-shadow: 0 4px 12px var(--shadow-strong);
+  position: sticky; /* also acts as positioning context for absolute children */
   top: 0;
   z-index: 100;
-  border-bottom: 1px solid #2d2d44;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .app-header-title {
@@ -38,30 +36,29 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  color: #e0e0e0;
+  color: var(--text-on-navy);
   border: 1px solid transparent;
   cursor: pointer;
   font-size: 20px;
   line-height: 1;
 }
-
 .header-menu-btn:hover {
-  border-color: #2d2d44;
-  background: rgba(111, 107, 255, 0.12);
+  border-color: var(--border-light);
+  background: rgba(255,255,255,0.06);
 }
 
 .header-dropdown-menu {
   position: absolute;
   top: calc(var(--header-height) + 4px);
   left: 16px;
-  background: #252541;
-  backdrop-filter: blur(8px);
+  background: rgba(13,39,73,0.95);
+  backdrop-filter: blur(12px);
   padding: 12px 14px;
   border-radius: 12px;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 22px var(--shadow-strong);
   animation: fadeInDown .25s ease;
   z-index: 200;
-  border: 1px solid #3a3a5c;
+  border: 1px solid var(--border-light);
   min-width: 180px;
 }
 
@@ -71,12 +68,12 @@
   border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
-  color: #e0e0e0;
-  transition: background 0.2s ease, transform 0.2s ease;
+  color: var(--text-on-navy);
+  transition: background .25s, transform .2s;
 }
 
 .header-dropdown-menu p:hover {
-  background: #6c63ff;
+  background: rgba(255,255,255,0.15);
   transform: translateX(4px);
 }
 
@@ -85,7 +82,6 @@
     opacity: 0;
     transform: translateY(-6px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
