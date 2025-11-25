@@ -16,8 +16,6 @@ const Chat = ({ onSwitchToQuiz }) => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [documentCount, setDocumentCount] = useState(0);
-    const [showChats, setShowChats] = useState(true);
-    const headerTitle = 'TutorAI';
     const fileInputRef = useRef(null);
 
     const messagesEndRef = useRef(null);
@@ -177,10 +175,10 @@ const Chat = ({ onSwitchToQuiz }) => {
                 sender: 'bot',
                 text: `✅ Successfully uploaded and processed ${selectedFile.name}. ${response.data.chunks} chunks were created.`
             }]);
-
+            
             // Refresh document count
             fetchDocumentCount();
-
+            
             // Reset file selection
             setSelectedFile(null);
             setUploadProgress(0);
@@ -196,7 +194,7 @@ const Chat = ({ onSwitchToQuiz }) => {
                     errorMessage = err.message;
                 }
             }
-
+            
             console.error('Upload error details:', err);
             setError(`Upload failed: ${errorMessage}`);
             setUploadProgress(0);
@@ -267,63 +265,40 @@ const Chat = ({ onSwitchToQuiz }) => {
         handleSend(input);
     };
 
-    const handleChatsToggle = () => {
-        setShowChats((prev) => !prev);
-    };
-
-    const filteredPastChats = pastChats.filter((thread) => thread.message_count > 1);
-
     return (
         <div className="chat-container">
             {/* Sidebar */}
             <div className="sidebar">
-                <div className="sidebar-header">
-                    <div className="header-left">
-                        <span className="header-title">{headerTitle}</span>
-                    </div>
-                </div>
-
+                {/* New Chat Button */}
                 <button className="new-chat-button" onClick={handleNewChat}>
                     + New Chat
                 </button>
 
-                <div className="chats-section">
-                    <button
-                        type="button"
-                        className="chats-header"
-                        onClick={handleChatsToggle}
-                        aria-expanded={showChats}
-                    >
-                        <span className="chats-title">Chats ({filteredPastChats.length})</span>
-                        <span className="chats-toggle-icon">{showChats ? '▼' : '▶'}</span>
-                    </button>
-
-                    {showChats && (
-                        <div className="past-chats">
-                            {filteredPastChats.map((thread, index) => (
-                                <div
-                                    key={thread.thread_id || index}
-                                    className={`past-chat-item ${currentThreadId === thread.thread_id ? 'active' : ''}`}
-                                    onClick={() => loadThread(thread.thread_id)}
-                                >
-                                    <div className="chat-item-content">
-                                        <div className="chat-preview">{thread.preview}</div>
-                                        <div className="chat-meta">
-                                            {thread.message_count} messages
-                                        </div>
-                                    </div>
-                                    <button
-                                        className="delete-thread-button"
-                                        onClick={(e) => handleDeleteThread(thread.thread_id, e)}
-                                        title="Delete this chat"
-                                        type="button"
-                                    >
-                                        ✕
-                                    </button>
+                {/* Scrollable List of Past Chats */}
+                <div className="past-chats">
+                    {pastChats
+                        .filter(thread => thread.message_count > 1) // Only show threads with actual discussions
+                        .map((thread, index) => (
+                        <div
+                            key={thread.thread_id || index}
+                            className={`past-chat-item ${currentThreadId === thread.thread_id ? 'active' : ''}`}
+                            onClick={() => loadThread(thread.thread_id)}
+                        >
+                            <div className="chat-item-content">
+                                <div className="chat-preview">{thread.preview}</div>
+                                <div className="chat-meta">
+                                    {thread.message_count} messages
                                 </div>
-                            ))}
+                            </div>
+                            <button
+                                className="delete-thread-button"
+                                onClick={(e) => handleDeleteThread(thread.thread_id, e)}
+                                title="Delete this chat"
+                            >
+                                ✕
+                            </button>
                         </div>
-                    )}
+                    ))}
                 </div>
             </div>
 
@@ -374,7 +349,7 @@ const Chat = ({ onSwitchToQuiz }) => {
                             accept=".txt,.md,.pdf"
                             style={{ display: 'none' }}
                         />
-                        <button
+                        <button 
                             className="file-upload-button"
                             onClick={() => fileInputRef.current?.click()}
                             type="button"

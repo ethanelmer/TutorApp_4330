@@ -1,44 +1,70 @@
 .file-upload-area {
+    padding: 16px 24px;
+    background: rgba(11, 31, 58, 0.4);
+    border-top: 2px solid var(--border-lighter);
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 20px 18px 20px;
-    background-color: #0f0f23;
-    border-top: 1px solid #2d2d44;
-    flex-wrap: wrap;
-}
-
-.file-input-wrapper {
-    display: inline-flex;
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(10px);
 }
 
 .file-upload-button {
-    padding: 10px 14px;
-    background-color: #252541;
-    color: #e0e0e0;
-    border: 1px solid #3a3a5c;
-    border-radius: 6px;
+    background: linear-gradient(135deg, var(--navy-600) 0%, var(--navy-500) 100%);
+    color: var(--text-on-navy);
+    padding: 10px 18px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
-    transition: background 0.2s ease, border 0.2s ease;
+    font-weight: 600;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background .25s ease;
+    box-shadow: 0 6px 16px var(--shadow-soft);
 }
 
 .file-upload-button:hover {
-    background-color: #2d2d50;
-    border-color: #6c63ff;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px var(--shadow-strong);
+    background: linear-gradient(135deg, var(--navy-600) 0%, var(--navy-700) 100%);
 }
 
 .file-upload-button:disabled {
-    opacity: 0.6;
+    background: rgba(255, 255, 255, 0.25);
+    color: rgba(255,255,255,0.6);
     cursor: not-allowed;
-}
-
-.selected-file {
-    font-size: 13px;
-    color: #c0c0e0;
+    border: 1px solid var(--border-lighter);
 }
 
 .upload-progress {
-    font-size: 13px;
-    color: #8f87ff;
+    font-size: 14px;
+    color: var(--text-on-navy);
+}
+
+.document-list {
+    padding: 10px 15px;
+    background: rgba(11,31,58,0.35);
+    border-bottom: 1px solid var(--border-light);
+    font-size: 14px;
+    color: var(--text-on-navy);
+}
+
+.document-count {
+    font-weight: bold;
+    color: #f093fb;
+    text-shadow: 0 0 10px rgba(240, 147, 251, 0.4);
+}
+
+.file-input-wrapper {
+    display: inline-block;
+    margin-right: 10px;
+}
+
+.selected-file {
+    margin: 0 10px;
+    color: var(--text-on-navy);
+    font-size: 14px;
+    opacity: 0.95;
+    display: inline-block;
+    vertical-align: middle;
 }
