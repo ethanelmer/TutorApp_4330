@@ -19,14 +19,43 @@ const Quiz = ({ externalRegenerateTrigger, onRegenerationComplete }) => {
                 clearInterval(pollRef.current);
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const startPollingStatus = (expectFresh = false, onDone) => {
         if (pollRef.current) return; // already polling
+        console.log(`[Quiz] Starting polling, expectFresh=${expectFresh}`);
+        const startTime = Date.now();
+        const maxPollTime = 180000; // 3 minutes max
+        
         pollRef.current = setInterval(async () => {
             try {
+                // Check if we've been polling too long
+                if (Date.now() - startTime > maxPollTime) {
+                    console.log('[Quiz] Polling timeout - stopping');
+                    clearInterval(pollRef.current);
+                    pollRef.current = null;
+                    setError('Quiz generation is taking too long. The AI service may be experiencing issues. Please try again later.');
+                    setIsLoading(false);
+                    if (onDone) onDone();
+                    return;
+                }
+                
                 const statusResp = await axios.get('http://127.0.0.1:8000/api/quiz/status/');
-                const { ready, in_progress } = statusResp.data;
+                const { ready, in_progress, error } = statusResp.data;
+                console.log(`[Quiz] Poll result: ready=${ready}, in_progress=${in_progress}, error=${error}`);
+                
+                // Check for errors at any time
+                if (error) {
+                    console.log(`[Quiz] Error detected: ${error}`);
+                    clearInterval(pollRef.current);
+                    pollRef.current = null;
+                    setError(`Quiz generation failed: ${error}`);
+                    setIsLoading(false);
+                    if (onDone) onDone();
+                    return;
+                }
+                
                 // Initial load: fetch as soon as ready
                 if (!expectFresh && ready) {
                     clearInterval(pollRef.current);
@@ -39,10 +68,13 @@ const Quiz = ({ externalRegenerateTrigger, onRegenerationComplete }) => {
                     if (onDone) onDone();
                     return;
                 }
-                // Regeneration: wait until finished (ready && !in_progress)
-                if (expectFresh && ready && !in_progress) {
+                
+                // Regeneration: wait until task completes (!in_progress)
+                if (expectFresh && !in_progress) {
                     clearInterval(pollRef.current);
                     pollRef.current = null;
+                    
+                    // Try to fetch the new quiz
                     const resp = await axios.get('http://127.0.0.1:8000/api/quiz/preloaded/');
                     if (resp.data.quiz) {
                         handleQuizPayload(resp.data.quiz);
@@ -51,7 +83,7 @@ const Quiz = ({ externalRegenerateTrigger, onRegenerationComplete }) => {
                     return;
                 }
             } catch (e) {
-                // swallow errors
+                console.error('[Quiz] Poll error:', e);
             }
         }, 3000);
     };
@@ -116,12 +148,16 @@ const Quiz = ({ externalRegenerateTrigger, onRegenerationComplete }) => {
 
     const regenerateBackground = async () => {
         try {
-            await axios.post('http://127.0.0.1:8000/api/quiz/regenerate/');
+            console.log('[Quiz] Requesting regeneration...');
+            const response = await axios.post('http://127.0.0.1:8000/api/quiz/regenerate/');
+            console.log('[Quiz] Regeneration response:', response.data);
             // Keep current quiz visible; start fresh polling
             startPollingStatus(true, () => {
+                console.log('[Quiz] Regeneration complete callback');
                 if (onRegenerationComplete) onRegenerationComplete();
             });
         } catch (e) {
+            console.error('[Quiz] Regeneration error:', e);
             setError('Failed to start regeneration');
             if (onRegenerationComplete) onRegenerationComplete();
         }

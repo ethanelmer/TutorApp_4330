@@ -508,13 +508,16 @@ async def quiz_status():
     age = None
     if pre_generated_quiz_timestamp:
         age = int(time.time() - pre_generated_quiz_timestamp)
-    return {
+    
+    status = {
         "ready": pre_generated_quiz is not None,
         "in_progress": in_progress,
-        "error": pre_generated_quiz_error,
+        "error": pre_generated_quiz_error or "",
         "age_seconds": age,
         "cache_max_age": QUIZ_CACHE_MAX_AGE
     }
+    print(f"[quiz-status] ready={status['ready']}, in_progress={status['in_progress']}, error={status['error'][:50] if status['error'] else 'none'}")
+    return status
 
 @app.get("/api/quiz/preloaded/")
 async def get_preloaded_quiz():
