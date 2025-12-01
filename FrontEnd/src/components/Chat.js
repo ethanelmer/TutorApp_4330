@@ -218,6 +218,10 @@ const Chat = ({ onSwitchToQuiz }) => {
         // Add user message immediately
         const userMessage = { sender: 'user', text: messageText };
         setMessages((prevMessages) => [...prevMessages, userMessage]);
+        
+        // Clear input immediately after adding message
+        setInput('');
+        
         setIsLoading(true);
         setError(null);
 
@@ -241,9 +245,6 @@ const Chat = ({ onSwitchToQuiz }) => {
 
             // Refresh past threads list to show updated preview
             fetchPastThreads();
-
-            // Only clear input after successful response
-            setInput('');
         } catch (err) {
             console.error('Error fetching response:', err);
             let errorMessage = err.response?.data?.detail || 'Sorry, something went wrong. Please try again.';
@@ -256,7 +257,6 @@ const Chat = ({ onSwitchToQuiz }) => {
                 { sender: 'bot', text: `❌ ${errorMessage}` }
             ]);
             setError(errorMessage);
-            // Don't clear input on error so user can try again
         } finally {
             setIsLoading(false);
         }

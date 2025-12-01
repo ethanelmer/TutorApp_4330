@@ -4,7 +4,6 @@ import ReactMarkdown from 'react-markdown';
 import './Quiz.css';
 
 const Quiz = ({ externalRegenerateTrigger, onRegenerationComplete }) => {
-    const [quiz, setQuiz] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showAnswers, setShowAnswers] = useState({});
@@ -106,7 +105,6 @@ const Quiz = ({ externalRegenerateTrigger, onRegenerationComplete }) => {
     };
 
     const handleQuizPayload = (quizData) => {
-        setQuiz(quizData);
         try {
             const jsonMatch = quizData.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
@@ -119,7 +117,7 @@ const Quiz = ({ externalRegenerateTrigger, onRegenerationComplete }) => {
             } else {
                 setParsedQuestions([]);
             }
-        } catch (parseError) {
+        } catch (err) {
             console.log('Could not parse as JSON, will display as markdown');
             setParsedQuestions([]);
         }
